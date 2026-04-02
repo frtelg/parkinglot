@@ -72,14 +72,6 @@ function getStatusLabel(item: Item) {
   return item.status === "resolved" ? "Resolved" : "Active";
 }
 
-function chooseSelection(items: Item[], preferredId?: string | null) {
-  if (preferredId && items.some((item) => item.id === preferredId)) {
-    return preferredId;
-  }
-
-  return items[0]?.id ?? null;
-}
-
 function getCommentAuthorLabel(comment: Comment) {
   return comment.authorLabel ?? authorTypeLabels[comment.authorType];
 }
@@ -114,12 +106,13 @@ async function fetchItemDetail(itemId: string) {
 export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLotAppProps) {
   const [view, setView] = useState<ItemView>("active");
   const [items, setItems] = useState<Item[]>(initialItems);
-  const [selectedId, setSelectedId] = useState<string | null>(() => initialSelectedDetail?.item.id ?? initialItems[0]?.id ?? null);
+  const [selectedId, setSelectedId] = useState<string | null>(() => initialSelectedDetail?.item.id ?? null);
   const [selectedDetail, setSelectedDetail] = useState<ItemDetail | null>(initialSelectedDetail);
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [createTitle, setCreateTitle] = useState("");
   const [createDetails, setCreateDetails] = useState("");
-  const [draftTitle, setDraftTitle] = useState(() => initialSelectedDetail?.item.title ?? initialItems[0]?.title ?? "");
-  const [draftDetails, setDraftDetails] = useState(() => initialSelectedDetail?.item.details ?? initialItems[0]?.details ?? "");
+  const [draftTitle, setDraftTitle] = useState(() => initialSelectedDetail?.item.title ?? "");
+  const [draftDetails, setDraftDetails] = useState(() => initialSelectedDetail?.item.details ?? "");
   const [commentBody, setCommentBody] = useState("");
   const [commentAuthorType, setCommentAuthorType] = useState<Comment["authorType"]>("human");
   const [commentAuthorLabel, setCommentAuthorLabel] = useState("");
@@ -167,31 +160,20 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
     setEditingCommentBody("");
   }
 
-  async function loadView(
-    nextView: ItemView,
-    preferredId?: string | null,
-    options?: { openMobileDetail?: boolean; status?: string },
-  ) {
+  async function loadView(nextView: ItemView, options?: { status?: string }) {
     setError(null);
     setIsViewLoading(true);
 
     try {
       const data = await requestJson<ItemsResponse>(`/api/items?view=${nextView}`);
-      const nextSelectedId = chooseSelection(data.items, preferredId);
-      const detail = nextSelectedId ? await fetchItemDetail(nextSelectedId) : null;
 
       setView(nextView);
       setItems(data.items);
-      setSelectedId(nextSelectedId);
-      setSelectedDetail(detail);
-      syncDrafts(detail?.item ?? null);
+      setSelectedId(null);
+      setSelectedDetail(null);
+      syncDrafts(null);
       cancelCommentEdit();
-
-      if (options?.openMobileDetail !== undefined) {
-        setIsMobileDetailOpen(options.openMobileDetail && Boolean(detail));
-      } else {
-        setIsMobileDetailOpen((current) => current && Boolean(detail));
-      }
+      setIsMobileDetailOpen(false);
 
       setStatusMessage(options?.status ?? `${viewLabels[nextView]} view updated.`);
     } catch (caughtError) {
@@ -222,16 +204,35 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
     }
   }
 
+  function closeDetail() {
+    setIsMobileDetailOpen(false);
+    cancelCommentEdit();
+    setSelectedId(null);
+    setSelectedDetail(null);
+    syncDrafts(null);
+    setStatusMessage("Returned to overview.");
+  }
+
   async function refreshSelectedItem(status: string) {
     if (!selectedId) {
-      await loadView(view, null, { status });
+      await loadView(view, { status });
       return;
     }
 
-    await loadView(view, selectedId, {
-      openMobileDetail: isMobileDetailOpen,
-      status,
-    });
+    setError(null);
+    setIsDetailLoading(true);
+
+    try {
+      const detail = await fetchItemDetail(selectedId);
+      setSelectedDetail(detail);
+      syncDrafts(detail.item);
+      setStatusMessage(status);
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to refresh item details");
+      setSelectedDetail(null);
+    } finally {
+      setIsDetailLoading(false);
+    }
   }
 
   async function handleCreateItem(event: FormEvent<HTMLFormElement>) {
@@ -249,10 +250,9 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
 
       setCreateTitle("");
       setCreateDetails("");
-      await loadView("active", data.item.id, {
-        openMobileDetail: true,
-        status: `Created ${data.item.title}.`,
-      });
+      setIsCreateFormOpen(false);
+      await loadView("active", { status: `Created ${data.item.title}.` });
+      await loadSelectedItem(data.item);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to create item");
     } finally {
@@ -275,10 +275,7 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
         body: JSON.stringify({ title: draftTitle, details: draftDetails }),
       });
 
-      await loadView(view, selectedItem.id, {
-        openMobileDetail: true,
-        status: `Saved ${data.item.title}.`,
-      });
+      await refreshSelectedItem(`Saved ${data.item.title}.`);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to save item");
     } finally {
@@ -298,10 +295,7 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
         method: "POST",
       });
 
-      await loadView("resolved", data.item.id, {
-        openMobileDetail: true,
-        status: `Resolved ${data.item.title}.`,
-      });
+      await loadView("resolved", { status: `Resolved ${data.item.title}.` });
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to resolve item");
     } finally {
@@ -321,10 +315,7 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
         method: "POST",
       });
 
-      await loadView("archived", data.item.id, {
-        openMobileDetail: true,
-        status: `Archived ${data.item.title}.`,
-      });
+      await loadView("archived", { status: `Archived ${data.item.title}.` });
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to archive item");
     } finally {
@@ -344,8 +335,7 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
         method: "POST",
       });
 
-      await loadView(data.item.status, data.item.id, {
-        openMobileDetail: true,
+      await loadView(data.item.status, {
         status: `Returned ${data.item.title} to ${viewLabels[data.item.status]}.`,
       });
     } catch (caughtError) {
@@ -438,10 +428,10 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
       <section className={styles.hero}>
         <div>
           <p className={styles.kicker}>Local-first control tower</p>
-          <h1 className={styles.title}>Park the work that is competing for your headspace.</h1>
+          <h1 className={styles.title}>Keep the next item in view.</h1>
           <p className={styles.subtitle}>
-            Keep the current lane visible, move finished work aside, and archive things that stopped
-            mattering before they stole more attention.
+            Review active work, open detail only when you need it, and move finished threads out of
+            the way.
           </p>
         </div>
         <div className={styles.heroNote}>
@@ -468,10 +458,7 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
       ) : null}
 
       <section className={styles.workspace} aria-busy={isViewLoading || isDetailLoading || pendingAction !== null}>
-        <aside
-          className={`${styles.sidebar} ${isMobileDetailOpen ? styles.mobileHidden : ""}`}
-          aria-labelledby={listRegionId}
-        >
+        <section className={styles.overviewPanel} aria-labelledby={listRegionId}>
           <div className={styles.panelHeader}>
             <div>
               <h2 id={listRegionId}>Overview</h2>
@@ -492,10 +479,7 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
                 className={view === nextView ? styles.activeTab : styles.tab}
                 disabled={isViewLoading}
                 onClick={() => {
-                  void loadView(nextView, null, {
-                    openMobileDetail: false,
-                    status: `${viewLabels[nextView]} view opened.`,
-                  });
+                  void loadView(nextView, { status: `${viewLabels[nextView]} view opened.` });
                 }}
               >
                 {viewLabels[nextView]}
@@ -503,38 +487,65 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
             ))}
           </div>
 
-          <form className={styles.createCard} onSubmit={handleCreateItem}>
-            <div>
-              <h3>Add a new item</h3>
-              <p>Capture it before it becomes another tab in your head.</p>
+          <div className={styles.createSection}>
+            <div className={styles.createSummary}>
+              <div>
+                <h3>Add a new item</h3>
+                <p>Keep capture close without letting it outrank the list.</p>
+              </div>
+              <button
+                type="button"
+                className={styles.primaryButton}
+                aria-expanded={isCreateFormOpen}
+                onClick={() => setIsCreateFormOpen((current) => !current)}
+              >
+                {isCreateFormOpen ? "Close" : "Add item"}
+              </button>
             </div>
 
-            <label className={styles.field}>
-              <span>Title</span>
-              <input
-                value={createTitle}
-                onChange={(event) => setCreateTitle(event.target.value)}
-                placeholder="Ship phase 2 comments"
-                maxLength={120}
-                required
-              />
-            </label>
+            {isCreateFormOpen ? (
+              <form className={styles.createCard} onSubmit={handleCreateItem}>
+                <label className={styles.field}>
+                  <span>Title</span>
+                  <input
+                    value={createTitle}
+                    onChange={(event) => setCreateTitle(event.target.value)}
+                    placeholder="Ship phase 2 comments"
+                    maxLength={120}
+                    required
+                  />
+                </label>
 
-            <label className={styles.field}>
-              <span>Details</span>
-              <textarea
-                value={createDetails}
-                onChange={(event) => setCreateDetails(event.target.value)}
-                placeholder="What needs to happen next?"
-                maxLength={4000}
-                rows={4}
-              />
-            </label>
+                <label className={styles.field}>
+                  <span>Details</span>
+                  <textarea
+                    value={createDetails}
+                    onChange={(event) => setCreateDetails(event.target.value)}
+                    placeholder="What needs to happen next?"
+                    maxLength={4000}
+                    rows={4}
+                  />
+                </label>
 
-            <button type="submit" className={styles.primaryButton} disabled={pendingAction === "create-item"}>
-              {pendingAction === "create-item" ? "Adding..." : "Add item"}
-            </button>
-          </form>
+                <div className={styles.actions}>
+                  <button type="submit" className={styles.primaryButton} disabled={pendingAction === "create-item"}>
+                    {pendingAction === "create-item" ? "Adding..." : "Save item"}
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => {
+                      setCreateTitle("");
+                      setCreateDetails("");
+                      setIsCreateFormOpen(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : null}
+          </div>
 
           <div id={`panel-${view}`} className={styles.list} role="tabpanel" aria-labelledby={`tab-${view}`}>
             {isViewLoading ? <div className={styles.loadingState}>Loading {viewLabels[view].toLowerCase()} items...</div> : null}
@@ -563,288 +574,272 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
                 ))
               : null}
           </div>
-        </aside>
+        </section>
 
-        <section
-          className={`${styles.detailPanel} ${!isMobileDetailOpen && selectedId ? styles.mobileDetailPreview : ""}`}
-          aria-labelledby={detailRegionId}
-        >
-          <div className={styles.mobileToolbar}>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={() => setIsMobileDetailOpen(false)}
-            >
-              Back to overview
-            </button>
-            {selectedItem ? (
-              <button
-                type="button"
-                className={styles.secondaryButton}
-                onClick={() => setIsMobileDetailOpen(true)}
-              >
-                Open detail
-              </button>
-            ) : null}
-          </div>
+        {selectedId ? (
+          <section className={styles.detailOverlay} aria-labelledby={detailRegionId}>
+            <button type="button" className={styles.overlayScrim} aria-label="Close detail" onClick={closeDetail} />
 
-          {selectedId && !visibleDetail ? (
-            <div className={styles.detailEmptyState}>
-              <h2 id={detailRegionId} ref={detailHeadingRef} tabIndex={-1}>
-                Loading item detail
-              </h2>
-              <p>{isDetailLoading ? "Pulling the latest comments and metadata from local storage." : "Select an item to view its details."}</p>
-            </div>
-          ) : visibleDetail ? (
-            <>
-              <div className={styles.panelHeader}>
-                <div>
-                  <h2 id={detailRegionId} ref={detailHeadingRef} tabIndex={-1}>
-                    Item detail
-                  </h2>
-                  <p>Keep the item focused without losing the thread around it.</p>
-                </div>
-                <span className={`${styles.badge} ${getStatusTone(visibleDetail.item)}`}>
-                  {getStatusLabel(visibleDetail.item)}
-                </span>
+            <section className={styles.detailPanel}>
+              <div className={styles.mobileToolbar}>
+                <button type="button" className={styles.secondaryButton} onClick={closeDetail}>
+                  Back to overview
+                </button>
               </div>
 
-              <form className={styles.detailForm} onSubmit={handleSaveItem}>
-                <label className={styles.field}>
-                  <span>Title</span>
-                  <input
-                    value={draftTitle}
-                    onChange={(event) => setDraftTitle(event.target.value)}
-                    maxLength={120}
-                    required
-                  />
-                </label>
-
-                <label className={styles.field}>
-                  <span>Details</span>
-                  <textarea
-                    value={draftDetails}
-                    onChange={(event) => setDraftDetails(event.target.value)}
-                    maxLength={4000}
-                    rows={8}
-                  />
-                </label>
-
-                <div className={styles.actions}>
-                  <button type="submit" className={styles.primaryButton} disabled={pendingAction === "save-item"}>
-                    {pendingAction === "save-item" ? "Saving..." : "Save changes"}
-                  </button>
-
-                  {!visibleDetail.item.archivedAt && visibleDetail.item.status === "active" ? (
-                    <button
-                      type="button"
-                      className={styles.secondaryButton}
-                      disabled={pendingAction === "resolve-item"}
-                      onClick={handleResolve}
-                    >
-                      {pendingAction === "resolve-item" ? "Resolving..." : "Resolve"}
-                    </button>
-                  ) : null}
-
-                  {!visibleDetail.item.archivedAt ? (
-                    <button
-                      type="button"
-                      className={styles.secondaryButton}
-                      disabled={pendingAction === "archive-item"}
-                      onClick={handleArchive}
-                    >
-                      {pendingAction === "archive-item" ? "Archiving..." : "Archive"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className={styles.secondaryButton}
-                      disabled={pendingAction === "unarchive-item"}
-                      onClick={handleUnarchive}
-                    >
-                      {pendingAction === "unarchive-item" ? "Restoring..." : "Unarchive"}
-                    </button>
-                  )}
+              {selectedId && !visibleDetail ? (
+                <div className={styles.detailEmptyState}>
+                  <h2 id={detailRegionId} ref={detailHeadingRef} tabIndex={-1}>
+                    Loading item detail
+                  </h2>
+                  <p>{isDetailLoading ? "Pulling the latest comments and metadata from local storage." : "Select an item to view its details."}</p>
                 </div>
-              </form>
-
-              <dl className={styles.metaGrid}>
-                <div>
-                  <dt>Created</dt>
-                  <dd>{formatTimestamp(visibleDetail.item.createdAt)}</dd>
-                </div>
-                <div>
-                  <dt>Updated</dt>
-                  <dd>{formatTimestamp(visibleDetail.item.updatedAt)}</dd>
-                </div>
-                <div>
-                  <dt>Resolved at</dt>
-                  <dd>{visibleDetail.item.resolvedAt ? formatTimestamp(visibleDetail.item.resolvedAt) : "Not resolved"}</dd>
-                </div>
-                <div>
-                  <dt>Archived at</dt>
-                  <dd>{visibleDetail.item.archivedAt ? formatTimestamp(visibleDetail.item.archivedAt) : "Not archived"}</dd>
-                </div>
-              </dl>
-
-              <section className={styles.commentsSection} aria-labelledby="comment-timeline-heading">
-                <div className={styles.commentsHeader}>
-                  <div>
-                    <h3 id="comment-timeline-heading">Comment timeline</h3>
-                    <p>Persistent context stays attached to the item instead of living in side channels.</p>
+              ) : visibleDetail ? (
+                <>
+                  <div className={styles.panelHeader}>
+                    <div>
+                      <h2 id={detailRegionId} ref={detailHeadingRef} tabIndex={-1}>
+                        Item detail
+                      </h2>
+                      <p>Keep the item focused without losing the thread around it.</p>
+                    </div>
+                    <div className={styles.detailHeaderActions}>
+                      <span className={`${styles.badge} ${getStatusTone(visibleDetail.item)}`}>
+                        {getStatusLabel(visibleDetail.item)}
+                      </span>
+                      <button type="button" className={styles.secondaryButton} onClick={closeDetail}>
+                        Close
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    className={styles.secondaryButton}
-                    onClick={() => commentComposerRef.current?.focus()}
-                  >
-                    Jump to composer
-                  </button>
-                </div>
 
-                <form className={styles.commentComposer} onSubmit={handleCreateComment}>
-                  <label className={styles.field}>
-                    <span>New comment</span>
-                    <textarea
-                      ref={commentComposerRef}
-                      value={commentBody}
-                      onChange={(event) => setCommentBody(event.target.value)}
-                      placeholder="Leave the next bit of context here."
-                      maxLength={4000}
-                      rows={4}
-                      required
-                    />
-                  </label>
-
-                  <div className={styles.inlineFields}>
+                  <form className={styles.detailForm} onSubmit={handleSaveItem}>
                     <label className={styles.field}>
-                      <span>Author type</span>
-                      <select
-                        value={commentAuthorType}
-                        onChange={(event) => setCommentAuthorType(event.target.value as Comment["authorType"])}
-                      >
-                        {Object.entries(authorTypeLabels).map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className={styles.field}>
-                      <span>Optional label</span>
+                      <span>Title</span>
                       <input
-                        value={commentAuthorLabel}
-                        onChange={(event) => setCommentAuthorLabel(event.target.value)}
-                        placeholder="Alex, Planner Bot, etc."
-                        maxLength={80}
+                        value={draftTitle}
+                        onChange={(event) => setDraftTitle(event.target.value)}
+                        maxLength={120}
+                        required
                       />
                     </label>
-                  </div>
 
-                  <div className={styles.actions}>
-                    <button type="submit" className={styles.primaryButton} disabled={pendingAction === "create-comment"}>
-                      {pendingAction === "create-comment" ? "Posting..." : "Add comment"}
-                    </button>
-                    <button type="button" className={styles.secondaryButton} onClick={resetCommentComposer}>
-                      Clear
-                    </button>
-                  </div>
-                </form>
+                    <label className={styles.field}>
+                      <span>Details</span>
+                      <textarea
+                        value={draftDetails}
+                        onChange={(event) => setDraftDetails(event.target.value)}
+                        maxLength={4000}
+                        rows={8}
+                      />
+                    </label>
 
-                {visibleDetail.comments.length === 0 ? (
-                  <div className={styles.emptyState}>
-                    No comments yet. Add the first breadcrumb that explains what changed or why it matters.
-                  </div>
-                ) : (
-                  <ol className={styles.commentList}>
-                    {visibleDetail.comments.map((comment) => {
-                      const isEditing = editingCommentId === comment.id;
-                      const isSaving = pendingAction === `save-comment-${comment.id}`;
-                      const isDeleting = pendingAction === `delete-comment-${comment.id}`;
+                    <div className={styles.actions}>
+                      <button type="submit" className={styles.primaryButton} disabled={pendingAction === "save-item"}>
+                        {pendingAction === "save-item" ? "Saving..." : "Save changes"}
+                      </button>
 
-                      return (
-                        <li key={comment.id} className={styles.commentCard}>
-                          <div className={styles.commentHeader}>
-                            <div>
-                              <strong>{getCommentAuthorLabel(comment)}</strong>
-                              <div className={styles.commentMeta}>
-                                <span>{authorTypeLabels[comment.authorType]}</span>
-                                <span>{formatTimestamp(comment.createdAt)}</span>
-                                {hasCommentBeenEdited(comment) ? <span>Edited {formatTimestamp(comment.updatedAt)}</span> : null}
+                      {!visibleDetail.item.archivedAt && visibleDetail.item.status === "active" ? (
+                        <button
+                          type="button"
+                          className={styles.secondaryButton}
+                          disabled={pendingAction === "resolve-item"}
+                          onClick={handleResolve}
+                        >
+                          {pendingAction === "resolve-item" ? "Resolving..." : "Resolve"}
+                        </button>
+                      ) : null}
+
+                      {!visibleDetail.item.archivedAt ? (
+                        <button
+                          type="button"
+                          className={styles.secondaryButton}
+                          disabled={pendingAction === "archive-item"}
+                          onClick={handleArchive}
+                        >
+                          {pendingAction === "archive-item" ? "Archiving..." : "Archive"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className={styles.secondaryButton}
+                          disabled={pendingAction === "unarchive-item"}
+                          onClick={handleUnarchive}
+                        >
+                          {pendingAction === "unarchive-item" ? "Restoring..." : "Unarchive"}
+                        </button>
+                      )}
+                    </div>
+                  </form>
+
+                  <dl className={styles.metaGrid}>
+                    <div>
+                      <dt>Created</dt>
+                      <dd>{formatTimestamp(visibleDetail.item.createdAt)}</dd>
+                    </div>
+                    <div>
+                      <dt>Updated</dt>
+                      <dd>{formatTimestamp(visibleDetail.item.updatedAt)}</dd>
+                    </div>
+                    <div>
+                      <dt>Resolved at</dt>
+                      <dd>{visibleDetail.item.resolvedAt ? formatTimestamp(visibleDetail.item.resolvedAt) : "Not resolved"}</dd>
+                    </div>
+                    <div>
+                      <dt>Archived at</dt>
+                      <dd>{visibleDetail.item.archivedAt ? formatTimestamp(visibleDetail.item.archivedAt) : "Not archived"}</dd>
+                    </div>
+                  </dl>
+
+                  <section className={styles.commentsSection} aria-labelledby="comment-timeline-heading">
+                    <div className={styles.commentsHeader}>
+                      <div>
+                        <h3 id="comment-timeline-heading">Comment timeline</h3>
+                        <p>Persistent context stays attached to the item instead of living in side channels.</p>
+                      </div>
+                      <button type="button" className={styles.secondaryButton} onClick={() => commentComposerRef.current?.focus()}>
+                        Jump to composer
+                      </button>
+                    </div>
+
+                    <form className={styles.commentComposer} onSubmit={handleCreateComment}>
+                      <label className={styles.field}>
+                        <span>New comment</span>
+                        <textarea
+                          ref={commentComposerRef}
+                          value={commentBody}
+                          onChange={(event) => setCommentBody(event.target.value)}
+                          placeholder="Leave the next bit of context here."
+                          maxLength={4000}
+                          rows={4}
+                          required
+                        />
+                      </label>
+
+                      <div className={styles.inlineFields}>
+                        <label className={styles.field}>
+                          <span>Author type</span>
+                          <select
+                            value={commentAuthorType}
+                            onChange={(event) => setCommentAuthorType(event.target.value as Comment["authorType"])}
+                          >
+                            {Object.entries(authorTypeLabels).map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className={styles.field}>
+                          <span>Optional label</span>
+                          <input
+                            value={commentAuthorLabel}
+                            onChange={(event) => setCommentAuthorLabel(event.target.value)}
+                            placeholder="Alex, Planner Bot, etc."
+                            maxLength={80}
+                          />
+                        </label>
+                      </div>
+
+                      <div className={styles.actions}>
+                        <button type="submit" className={styles.primaryButton} disabled={pendingAction === "create-comment"}>
+                          {pendingAction === "create-comment" ? "Posting..." : "Add comment"}
+                        </button>
+                        <button type="button" className={styles.secondaryButton} onClick={resetCommentComposer}>
+                          Clear
+                        </button>
+                      </div>
+                    </form>
+
+                    {visibleDetail.comments.length === 0 ? (
+                      <div className={styles.emptyState}>
+                        No comments yet. Add the first breadcrumb that explains what changed or why it matters.
+                      </div>
+                    ) : (
+                      <ol className={styles.commentList}>
+                        {visibleDetail.comments.map((comment) => {
+                          const isEditing = editingCommentId === comment.id;
+                          const isSaving = pendingAction === `save-comment-${comment.id}`;
+                          const isDeleting = pendingAction === `delete-comment-${comment.id}`;
+
+                          return (
+                            <li key={comment.id} className={styles.commentCard}>
+                              <div className={styles.commentHeader}>
+                                <div>
+                                  <strong>{getCommentAuthorLabel(comment)}</strong>
+                                  <div className={styles.commentMeta}>
+                                    <span>{authorTypeLabels[comment.authorType]}</span>
+                                    <span>{formatTimestamp(comment.createdAt)}</span>
+                                    {hasCommentBeenEdited(comment) ? <span>Edited {formatTimestamp(comment.updatedAt)}</span> : null}
+                                  </div>
+                                </div>
+                                <div className={styles.commentActions}>
+                                  <button
+                                    type="button"
+                                    className={styles.secondaryButton}
+                                    onClick={() => {
+                                      setEditingCommentId(comment.id);
+                                      setEditingCommentBody(comment.body);
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.secondaryButton}
+                                    disabled={isDeleting}
+                                    onClick={() => {
+                                      void handleDeleteComment(comment.id);
+                                    }}
+                                  >
+                                    {isDeleting ? "Removing..." : "Remove"}
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                            <div className={styles.commentActions}>
-                              <button
-                                type="button"
-                                className={styles.secondaryButton}
-                                onClick={() => {
-                                  setEditingCommentId(comment.id);
-                                  setEditingCommentBody(comment.body);
-                                }}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className={styles.secondaryButton}
-                                disabled={isDeleting}
-                                onClick={() => {
-                                  void handleDeleteComment(comment.id);
-                                }}
-                              >
-                                {isDeleting ? "Removing..." : "Remove"}
-                              </button>
-                            </div>
-                          </div>
 
-                          {isEditing ? (
-                            <form
-                              className={styles.commentEditForm}
-                              onSubmit={(event) => {
-                                event.preventDefault();
-                                void handleSaveComment(comment.id);
-                              }}
-                            >
-                              <label className={styles.field}>
-                                <span>Edit comment</span>
-                                <textarea
-                                  value={editingCommentBody}
-                                  onChange={(event) => setEditingCommentBody(event.target.value)}
-                                  maxLength={4000}
-                                  rows={4}
-                                  required
-                                />
-                              </label>
+                              {isEditing ? (
+                                <form
+                                  className={styles.commentEditForm}
+                                  onSubmit={(event) => {
+                                    event.preventDefault();
+                                    void handleSaveComment(comment.id);
+                                  }}
+                                >
+                                  <label className={styles.field}>
+                                    <span>Edit comment</span>
+                                    <textarea
+                                      value={editingCommentBody}
+                                      onChange={(event) => setEditingCommentBody(event.target.value)}
+                                      maxLength={4000}
+                                      rows={4}
+                                      required
+                                    />
+                                  </label>
 
-                              <div className={styles.actions}>
-                                <button type="submit" className={styles.primaryButton} disabled={isSaving}>
-                                  {isSaving ? "Saving..." : "Save comment"}
-                                </button>
-                                <button type="button" className={styles.secondaryButton} onClick={cancelCommentEdit}>
-                                  Cancel
-                                </button>
-                              </div>
-                            </form>
-                          ) : (
-                            <p className={styles.commentBody}>{comment.body}</p>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ol>
-                )}
-              </section>
-            </>
-          ) : (
-            <div className={styles.detailEmptyState}>
-              <h2 id={detailRegionId} ref={detailHeadingRef} tabIndex={-1}>
-                No item selected
-              </h2>
-              <p>{emptyMessages[view]}</p>
-            </div>
-          )}
-        </section>
+                                  <div className={styles.actions}>
+                                    <button type="submit" className={styles.primaryButton} disabled={isSaving}>
+                                      {isSaving ? "Saving..." : "Save comment"}
+                                    </button>
+                                    <button type="button" className={styles.secondaryButton} onClick={cancelCommentEdit}>
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </form>
+                              ) : (
+                                <p className={styles.commentBody}>{comment.body}</p>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    )}
+                  </section>
+                </>
+              ) : null}
+            </section>
+          </section>
+        ) : null}
       </section>
     </main>
   );
