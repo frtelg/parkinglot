@@ -1,0 +1,37 @@
+node_modules/
+.next/
+data/
+dist/
+coverage/
+npm-debug.log*
+*.tsbuildinfo
+
+# Local environment overrides
+.env
+.env.*
+!.env.example
+
+# AI tooling local state
+.claude/skills/
+.claude/local*
+.claude/plans/
+.claude/todos/
+.claude/state/
+.claude/worktrees/
+.claude/*.local.*
+.opencode/skills/.skillshare-manifest.json
+.opencode/node_modules/
+.opencode/tmp/
+.opencode/state/
+.opencode/worktrees/
+.opencode/plans/
+.opencode/*.local.*
+.skillshare/logs/
+
+# OpenSpec local scratch files
+openspec/tmp/
+openspec/**/*.local.*
+openspec/**/*.plan.md
+
+# Local worktree folders
+.worktrees/

@@ -1,0 +1,520 @@
+.shell {
+  min-height: 100vh;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.kicker {
+  margin: 0 0 8px;
+  color: var(--accent);
+  font-size: 0.85rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  max-width: 12ch;
+  font-size: clamp(2.6rem, 5vw, 4.5rem);
+  line-height: 0.95;
+}
+
+.subtitle {
+  margin: 16px 0 0;
+  max-width: 60ch;
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.heroNote,
+.sidebar,
+.detailPanel,
+.createCard,
+.errorBanner,
+.emptyState,
+.detailEmptyState,
+.itemCard,
+.selectedCard,
+.loadingState,
+.commentCard,
+.commentComposer {
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow);
+}
+
+.heroNote {
+  min-width: 220px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.heroLabel {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.heroHint {
+  color: var(--text-muted);
+}
+
+.errorBanner {
+  padding: 14px 18px;
+  color: #fee2e2;
+  background: rgba(127, 29, 29, 0.7);
+  border-color: rgba(248, 113, 113, 0.35);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.errorBanner p {
+  margin: 6px 0 0;
+}
+
+.dismissButton {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.sidebar,
+.detailPanel {
+  padding: 20px;
+  backdrop-filter: blur(20px);
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.panelHeader h2,
+.createCard h3,
+.detailEmptyState h2,
+.commentsHeader h3 {
+  margin: 0;
+}
+
+.panelHeader p,
+.createCard p,
+.detailEmptyState p,
+.commentsHeader p {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.itemCount {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.tab,
+.activeTab,
+.primaryButton,
+.secondaryButton,
+.dismissButton {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.tab,
+.activeTab {
+  padding: 12px 14px;
+  background: var(--bg-soft);
+  color: var(--text);
+}
+
+.tab:hover,
+.activeTab:hover,
+.primaryButton:hover,
+.secondaryButton:hover,
+.dismissButton:hover,
+.itemCard:hover,
+.selectedCard:hover {
+  transform: translateY(-1px);
+}
+
+.activeTab {
+  background: rgba(255, 212, 74, 0.18);
+  border-color: rgba(255, 212, 74, 0.4);
+}
+
+.createCard {
+  padding: 18px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 183, 0, 0.12), rgba(255, 183, 0, 0.04)),
+    var(--bg-panel);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(6, 10, 14, 0.5);
+  padding: 12px 14px;
+  color: var(--text);
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.primaryButton,
+.secondaryButton {
+  padding: 12px 16px;
+  cursor: pointer;
+}
+
+.primaryButton {
+  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color: #161616;
+  font-weight: 700;
+  border-color: transparent;
+}
+
+.secondaryButton {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.tab:disabled,
+.activeTab:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  transform: none;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.itemCard,
+.selectedCard {
+  width: 100%;
+  text-align: left;
+  padding: 16px;
+  background: var(--bg-panel);
+  cursor: pointer;
+}
+
+.selectedCard {
+  background:
+    linear-gradient(180deg, rgba(255, 212, 74, 0.14), rgba(255, 212, 74, 0.06)),
+    var(--bg-panel);
+  border-color: rgba(255, 212, 74, 0.35);
+}
+
+.itemCardHeader {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.itemCard p,
+.commentBody {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.itemCard p {
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.itemMeta,
+.commentMeta {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.activeBadge {
+  background: rgba(125, 211, 252, 0.15);
+  color: var(--active);
+}
+
+.resolvedBadge {
+  background: rgba(134, 239, 172, 0.15);
+  color: var(--resolved);
+}
+
+.archivedBadge {
+  background: rgba(203, 213, 225, 0.12);
+  color: var(--archived);
+}
+
+.detailForm,
+.commentEditForm,
+.commentComposer {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.actions,
+.commentActions,
+.inlineFields,
+.commentsHeader,
+.mobileToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.commentsHeader,
+.mobileToolbar {
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mobileToolbar {
+  display: none;
+  margin-bottom: 18px;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.metaGrid div {
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.metaGrid dt {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  margin-bottom: 6px;
+}
+
+.metaGrid dd {
+  margin: 0;
+}
+
+.emptyState,
+.detailEmptyState,
+.loadingState,
+.commentComposer,
+.commentCard {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.loadingState {
+  color: var(--text-muted);
+}
+
+.detailPanel h2:focus-visible,
+.field input:focus-visible,
+.field textarea:focus-visible,
+.field select:focus-visible,
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.tab:focus-visible,
+.activeTab:focus-visible,
+.itemCard:focus-visible,
+.selectedCard:focus-visible,
+.dismissButton:focus-visible {
+  outline: 2px solid rgba(255, 212, 74, 0.7);
+  outline-offset: 3px;
+}
+
+.commentsSection {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.commentList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.commentHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.commentMeta {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.commentActions {
+  justify-content: flex-end;
+}
+
+.inlineFields > * {
+  flex: 1 1 220px;
+}
+
+@media (max-width: 980px) {
+  .shell {
+    padding: 20px;
+  }
+
+  .hero,
+  .workspace {
+    grid-template-columns: 1fr;
+    display: grid;
+  }
+
+  .hero {
+    gap: 18px;
+  }
+
+  .title {
+    max-width: 14ch;
+  }
+
+  .heroNote {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .mobileToolbar {
+    display: flex;
+  }
+
+  .mobileHidden {
+    display: none;
+  }
+
+  .mobileDetailPreview {
+    display: none;
+  }
+
+  .workspace {
+    gap: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .shell {
+    padding: 14px;
+  }
+
+  .sidebar,
+  .detailPanel,
+  .createCard,
+  .commentComposer,
+  .commentCard,
+  .emptyState,
+  .detailEmptyState,
+  .loadingState,
+  .errorBanner {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .tabs,
+  .metaGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .errorBanner,
+  .commentHeader,
+  .commentsHeader {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
