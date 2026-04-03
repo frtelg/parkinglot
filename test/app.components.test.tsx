@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -584,6 +584,115 @@ describe("component exports", () => {
     expect(await screen.findByText("Resolved work will collect here once something is finished.")).toBeInTheDocument();
 
     expect(MockEventSource.instances.length).toBeGreaterThan(0);
+  });
+
+  test("ParkingLotApp closes detail with Escape and ignores Escape when no detail is open", async () => {
+    const { ParkingLotApp } = await import("@/components/parking-lot-app");
+
+    const fetchMock = vi.fn((input: string) => {
+      const target = String(input);
+
+      if (target === `/api/items/${baseItem.id}`) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ item: baseItem, comments: [] }), {
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+
+      throw new Error(`Unexpected fetch call: ${target}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "EventSource",
+      class {
+        addEventListener() {}
+        close() {}
+      } as unknown as typeof EventSource,
+    );
+
+    const user = userEvent.setup();
+    render(<ParkingLotApp initialItems={[baseItem]} initialSelectedDetail={null} />);
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByText("Initial item")).toBeInTheDocument();
+    expect(screen.queryByText("Item detail")).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /Initial item/i }));
+    expect(await screen.findByText("Item detail")).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.queryByText("Item detail")).toBeNull();
+    });
+    expect(screen.getByText("Returned to overview.")).toHaveAttribute("aria-live", "polite");
+  });
+
+  test("ParkingLotApp reorders active items with drag and drop and persists the returned order", async () => {
+    const { ParkingLotApp } = await import("@/components/parking-lot-app");
+
+    const secondItem = {
+      ...baseItem,
+      id: "b05e453d-23f1-422b-b798-65c9d07867f5",
+      title: "Second item",
+      details: "Created second",
+      updatedAt: "2026-04-03T12:05:00.000Z",
+    };
+
+    const fetchMock = vi.fn((input: string, init?: RequestInit) => {
+      const target = String(input);
+
+      if (target === "/api/items/reorder" && init?.method === "POST") {
+        return Promise.resolve(
+          new Response(JSON.stringify({ items: [secondItem, baseItem] }), {
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+
+      throw new Error(`Unexpected fetch call: ${target}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "EventSource",
+      class {
+        addEventListener() {}
+        close() {}
+      } as unknown as typeof EventSource,
+    );
+
+    render(<ParkingLotApp initialItems={[baseItem, secondItem]} initialSelectedDetail={null} />);
+
+    const firstCard = screen.getByRole("button", { name: /Initial item/i });
+    const secondCard = screen.getByRole("button", { name: /Second item/i });
+
+    const dataTransfer = {
+      effectAllowed: "move",
+      setData: vi.fn(),
+      getData: vi.fn(),
+    } as unknown as DataTransfer;
+
+    fireEvent.dragStart(firstCard, { dataTransfer });
+    fireEvent.dragOver(secondCard, { dataTransfer });
+    fireEvent.drop(secondCard, { dataTransfer });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/items/reorder",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+
+    const itemButtons = screen.getAllByRole("button").filter((node) =>
+      node.textContent?.includes("Initial item") || node.textContent?.includes("Second item"),
+    );
+    expect(itemButtons[0]).toHaveTextContent("Second item");
+    expect(screen.getByText("Active order updated.")).toHaveAttribute("aria-live", "polite");
   });
 
   test("ParkingLotApp reconnects event stream and ignores mismatched item-created views", async () => {

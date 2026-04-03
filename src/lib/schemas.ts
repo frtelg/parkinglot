@@ -58,6 +58,22 @@ export const updateItemInputSchema = z
     message: "At least one field must be provided",
   });
 
+export const reorderActiveItemsInputSchema = z
+  .object({
+    itemIds: z.array(z.string().uuid()).min(1, "At least one item id must be provided"),
+  })
+  .superRefine((value, context) => {
+    if (new Set(value.itemIds).size === value.itemIds.length) {
+      return;
+    }
+
+    context.addIssue({
+      code: "custom",
+      path: ["itemIds"],
+      message: "Item ids must be unique",
+    });
+  });
+
 export const commentSchema = z.object({
   id: z.string().uuid(),
   itemId: z.string().uuid(),
@@ -84,6 +100,7 @@ export type ItemStatus = z.infer<typeof itemStatusSchema>;
 export type ItemView = z.infer<typeof itemViewSchema>;
 export type CreateItemInput = z.infer<typeof createItemInputSchema>;
 export type UpdateItemInput = z.infer<typeof updateItemInputSchema>;
+export type ReorderActiveItemsInput = z.infer<typeof reorderActiveItemsInputSchema>;
 export type Comment = z.infer<typeof commentSchema>;
 export type CreateCommentInput = z.infer<typeof createCommentInputSchema>;
 export type UpdateCommentInput = z.infer<typeof updateCommentInputSchema>;

@@ -10,6 +10,8 @@ import {
   type Item,
   type ItemStatus,
   type ItemView,
+  reorderActiveItemsInputSchema,
+  type ReorderActiveItemsInput,
   type UpdateItemInput,
   updateItemInputSchema,
 } from "./schemas.ts";
@@ -21,6 +23,7 @@ type ItemRow = {
   status: ItemStatus;
   archived_at: string | null;
   resolved_at: string | null;
+  active_sort_order: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -29,6 +32,13 @@ export class ItemNotFoundError extends Error {
   constructor(id: string) {
     super(`Item ${id} was not found`);
     this.name = "ItemNotFoundError";
+  }
+}
+
+export class InvalidActiveItemOrderError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidActiveItemOrderError";
   }
 }
 
@@ -49,12 +59,26 @@ function getItemRow(id: string) {
   return db
     .prepare(
       `
-        SELECT id, title, details, status, archived_at, resolved_at, created_at, updated_at
+        SELECT id, title, details, status, archived_at, resolved_at, active_sort_order, created_at, updated_at
         FROM items
         WHERE id = ?
       `,
     )
     .get(id) as ItemRow | undefined;
+}
+
+function getNextActiveSortOrder() {
+  const row = db
+    .prepare(
+      `
+        SELECT COALESCE(MAX(active_sort_order), -1) + 1 AS next_sort_order
+        FROM items
+        WHERE archived_at IS NULL AND status = 'active'
+      `,
+    )
+    .get() as { next_sort_order: number };
+
+  return row.next_sort_order;
 }
 
 function requireItem(id: string) {
@@ -97,10 +121,16 @@ export function listItems(view: ItemView) {
   const rows = db
     .prepare(
       `
-        SELECT id, title, details, status, archived_at, resolved_at, created_at, updated_at
+        SELECT id, title, details, status, archived_at, resolved_at, active_sort_order, created_at, updated_at
         FROM items
         WHERE ${whereClause}
-        ORDER BY updated_at DESC, created_at DESC
+        ORDER BY
+          CASE
+            WHEN archived_at IS NULL AND status = 'active' THEN active_sort_order
+          END ASC,
+          updated_at DESC,
+          created_at DESC,
+          id ASC
       `,
     )
     .all() as ItemRow[];
@@ -120,10 +150,10 @@ export function createItem(input: CreateItemInput) {
 
   db.prepare(
     `
-      INSERT INTO items (id, title, details, status, archived_at, resolved_at, created_at, updated_at)
-      VALUES (?, ?, ?, 'active', NULL, NULL, ?, ?)
+      INSERT INTO items (id, title, details, status, archived_at, resolved_at, active_sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, 'active', NULL, NULL, ?, ?, ?)
     `,
-  ).run(id, parsed.title, parsed.details, now, now);
+  ).run(id, parsed.title, parsed.details, getNextActiveSortOrder(), now, now);
 
   return requireItem(id);
 }
@@ -153,7 +183,7 @@ export function resolveItem(id: string) {
   db.prepare(
     `
       UPDATE items
-      SET status = 'resolved', resolved_at = ?, updated_at = ?
+      SET status = 'resolved', resolved_at = ?, updated_at = ?, active_sort_order = NULL
       WHERE id = ?
     `,
   ).run(resolvedAt, resolvedAt, id);
@@ -168,7 +198,7 @@ export function archiveItem(id: string) {
   db.prepare(
     `
       UPDATE items
-      SET archived_at = ?, updated_at = ?
+      SET archived_at = ?, updated_at = ?, active_sort_order = NULL
       WHERE id = ?
     `,
   ).run(archivedAt, archivedAt, id);
@@ -177,18 +207,49 @@ export function archiveItem(id: string) {
 }
 
 export function unarchiveItem(id: string) {
-  requireItem(id);
+  const item = requireItem(id);
   const updatedAt = new Date().toISOString();
+  const nextActiveSortOrder = item.status === itemStatusSchema.enum.active ? getNextActiveSortOrder() : null;
 
   db.prepare(
     `
       UPDATE items
-      SET archived_at = NULL, updated_at = ?
+      SET archived_at = NULL, updated_at = ?, active_sort_order = ?
       WHERE id = ?
     `,
-  ).run(updatedAt, id);
+  ).run(updatedAt, nextActiveSortOrder, id);
 
   return requireItem(id);
+}
+
+export function reorderActiveItems(input: ReorderActiveItemsInput) {
+  const parsed = reorderActiveItemsInputSchema.parse(input);
+  const activeItems = listItems("active");
+
+  if (activeItems.length !== parsed.itemIds.length) {
+    throw new InvalidActiveItemOrderError("Active item order must include every active item exactly once");
+  }
+
+  const activeIds = new Set(activeItems.map((item) => item.id));
+  if (parsed.itemIds.some((id) => !activeIds.has(id))) {
+    throw new InvalidActiveItemOrderError("Active item order can only contain active item ids");
+  }
+
+  const updateOrder = db.prepare(
+    `
+      UPDATE items
+      SET active_sort_order = ?
+      WHERE id = ?
+    `,
+  );
+
+  db.transaction((itemIds: string[]) => {
+    itemIds.forEach((itemId, index) => {
+      updateOrder.run(index, itemId);
+    });
+  })(parsed.itemIds);
+
+  return listItems("active");
 }
 
 export function getViewForItem(item: Item) {

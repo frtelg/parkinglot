@@ -35,6 +35,15 @@ describe("service, errors, events, and MCP exports", () => {
     const updated = parkingLot.updateParkingLotItem(created.item.id, { details: "Updated by service" });
     expect(updated.item.details).toBe("Updated by service");
 
+    const second = parkingLot.createParkingLotItem({
+      title: "Second service item",
+      details: "Created through service",
+    });
+    const reordered = parkingLot.reorderParkingLotActiveItems({
+      itemIds: [second.item.id, created.item.id],
+    });
+    expect(reordered.items.map((item) => item.id)).toEqual([second.item.id, created.item.id]);
+
     const createdComment = parkingLot.createParkingLotComment(created.item.id, {
       body: "Service comment",
       authorType: "agent",

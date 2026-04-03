@@ -4,11 +4,13 @@ import {
   commentResultSchema,
   itemDetailResultSchema,
   itemListResultSchema,
+  reorderItemsResultSchema,
   itemResultSchema,
   type CommentResult,
   type ItemDetailResult,
   type ItemListResult,
   type ItemResult,
+  type ReorderItemsResult,
 } from "./contracts.ts";
 import {
   archiveItem,
@@ -17,6 +19,7 @@ import {
   getItem,
   ItemNotFoundError,
   listItems,
+  reorderActiveItems,
   resolveItem,
   unarchiveItem,
   updateItem,
@@ -25,6 +28,8 @@ import {
   type CreateCommentInput,
   type CreateItemInput,
   itemViewSchema,
+  reorderActiveItemsInputSchema,
+  type ReorderActiveItemsInput,
   type ItemView,
   type UpdateCommentInput,
   type UpdateItemInput,
@@ -57,6 +62,12 @@ export function createParkingLotItem(input: CreateItemInput): ItemResult {
 
 export function updateParkingLotItem(id: string, input: UpdateItemInput): ItemResult {
   return itemResultSchema.parse({ item: updateItem(id, input) });
+}
+
+export function reorderParkingLotActiveItems(input: ReorderActiveItemsInput): ReorderItemsResult {
+  return reorderItemsResultSchema.parse({
+    items: reorderActiveItems(reorderActiveItemsInputSchema.parse(input)),
+  });
 }
 
 export function resolveParkingLotItem(id: string): ItemResult {

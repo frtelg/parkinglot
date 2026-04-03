@@ -62,6 +62,8 @@ npm run build
 - Default SQLite path: `data/parkinglot.db`
 - Override with `PARKINGLOT_DB_PATH`
 - The `data/` directory is ignored and safe to treat as local runtime state
+- The app runs local SQLite schema migrations on startup, including in normal development and hot-reload flows.
+- When the data model changes, add a new startup migration in `src/lib/database.ts` instead of relying on ad hoc manual DB repair.
 
 ## API
 
@@ -86,7 +88,7 @@ npm run build
 - Items are never hard-deleted in v1.
 - Comments are soft-deleted and removed from the normal timeline.
 - Unarchiving restores the previous non-archived working state.
-- Comment activity updates the parent item timestamp, so active ordering stays based on recent activity.
+- Comment activity updates the parent item timestamp, but persisted drag-and-drop order controls the Active view when active items have been manually arranged.
 
 ## MCP Adapter
 

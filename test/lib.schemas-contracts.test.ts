@@ -14,6 +14,7 @@ import {
   itemSchema,
   itemStatusSchema,
   itemViewSchema,
+  reorderActiveItemsInputSchema,
   updateCommentInputSchema,
   updateItemInputSchema,
 } from "@/lib/schemas";
@@ -94,6 +95,22 @@ describe("schemas and contracts", () => {
     expect(updateItemInputSchema.parse({ title: "Retitle" })).toEqual({ title: "Retitle" });
     expect(updateItemInputSchema.parse({ details: "Refresh details" })).toEqual({ details: "Refresh details" });
     expect(() => updateItemInputSchema.parse({})).toThrow("At least one field must be provided");
+    expect(
+      reorderActiveItemsInputSchema.parse({
+        itemIds: [
+          "0df048cf-b2f8-46f9-9a0f-6fbec60b39a2",
+          "b05e453d-23f1-422b-b798-65c9d07867f5",
+        ],
+      }).itemIds,
+    ).toHaveLength(2);
+    expect(() =>
+      reorderActiveItemsInputSchema.parse({
+        itemIds: [
+          "0df048cf-b2f8-46f9-9a0f-6fbec60b39a2",
+          "0df048cf-b2f8-46f9-9a0f-6fbec60b39a2",
+        ],
+      }),
+    ).toThrow("Item ids must be unique");
   });
 
   test("response contract schemas validate nested payloads", () => {

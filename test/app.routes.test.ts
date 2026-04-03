@@ -3,6 +3,36 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { createIsolatedRuntime, createRouteContext, readJson, readStreamChunk } from "./helpers/isolated-runtime";
 
+async function withMockedNow(values: string[], run: () => Promise<void> | void) {
+  const OriginalDate = Date;
+  let index = 0;
+
+  class MockDate extends OriginalDate {
+    constructor(value?: string | number | Date) {
+      super(value ?? values[Math.min(index, values.length - 1)]);
+    }
+
+    static override now() {
+      return new OriginalDate(values[Math.min(index, values.length - 1)]).valueOf();
+    }
+  }
+
+  const originalToISOString = OriginalDate.prototype.toISOString;
+  MockDate.prototype.toISOString = function toISOString() {
+    const value = values[Math.min(index, values.length - 1)];
+    index += 1;
+    return value ?? originalToISOString.call(this);
+  };
+
+  globalThis.Date = MockDate as DateConstructor;
+
+  try {
+    await run();
+  } finally {
+    globalThis.Date = OriginalDate;
+  }
+}
+
 describe("route exports", () => {
   let cleanup: (() => Promise<void>) | undefined;
 
@@ -92,18 +122,66 @@ describe("route exports", () => {
     const service = await import("@/lib/parking-lot");
     const commentsRoute = await import("@/app/api/items/[id]/comments/route");
     const commentRoute = await import("@/app/api/items/[id]/comments/[commentId]/route");
+    const reorderRoute = await import("@/app/api/items/reorder/route");
     const resolveRoute = await import("@/app/api/items/[id]/resolve/route");
     const archiveRoute = await import("@/app/api/items/[id]/archive/route");
     const unarchiveRoute = await import("@/app/api/items/[id]/unarchive/route");
 
     const created = service.createParkingLotItem({ title: "Route lifecycle item", details: "Lifecycle flow" });
+    const secondActive = service.createParkingLotItem({ title: "Second route item", details: "Reorder flow" });
     const itemId = created.item.id;
 
     expect(commentsRoute.dynamic).toBe("force-dynamic");
     expect(commentRoute.dynamic).toBe("force-dynamic");
+    expect(reorderRoute.dynamic).toBe("force-dynamic");
     expect(resolveRoute.dynamic).toBe("force-dynamic");
     expect(archiveRoute.dynamic).toBe("force-dynamic");
     expect(unarchiveRoute.dynamic).toBe("force-dynamic");
+
+    const reorderResponse = await reorderRoute.POST(
+      new NextRequest("http://localhost/api/items/reorder", {
+        method: "POST",
+        body: JSON.stringify({ itemIds: [secondActive.item.id, itemId] }),
+      }),
+    );
+    expect(((await readJson(reorderResponse)) as { items: Array<{ id: string }> }).items.map((item) => item.id)).toEqual([
+      secondActive.item.id,
+      itemId,
+    ]);
+
+    const invalidReorderResponse = await reorderRoute.POST(
+      new NextRequest("http://localhost/api/items/reorder", {
+        method: "POST",
+        body: JSON.stringify({ itemIds: [itemId] }),
+      }),
+    );
+    expect(invalidReorderResponse.status).toBe(409);
+
+    let resolvedEarlierId = "";
+    let resolvedLaterId = "";
+
+    await withMockedNow(
+      [
+        "2026-04-03T10:00:00.000Z",
+        "2026-04-03T11:00:00.000Z",
+        "2026-04-03T12:00:00.000Z",
+        "2026-04-03T13:00:00.000Z",
+      ],
+      async () => {
+        const resolvedEarlier = service.createParkingLotItem({ title: "Resolved earlier", details: "Earlier timestamp" });
+        const resolvedLater = service.createParkingLotItem({ title: "Resolved later", details: "Later timestamp" });
+        service.resolveParkingLotItem(resolvedEarlier.item.id);
+        service.resolveParkingLotItem(resolvedLater.item.id);
+        resolvedEarlierId = resolvedEarlier.item.id;
+        resolvedLaterId = resolvedLater.item.id;
+      },
+    );
+
+    const resolvedListResponse = await (await import("@/app/api/items/route")).GET(
+      new NextRequest("http://localhost/api/items?view=resolved"),
+    );
+    const resolvedIds = ((await readJson(resolvedListResponse)) as { items: Array<{ id: string }> }).items.map((item) => item.id);
+    expect(resolvedIds.indexOf(resolvedLaterId)).toBeLessThan(resolvedIds.indexOf(resolvedEarlierId));
 
     const createdCommentResponse = await commentsRoute.POST(
       new Request("http://localhost/api/items/id/comments", {
