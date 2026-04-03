@@ -91,7 +91,7 @@ before(async () => {
   baseUrl = `http://127.0.0.1:${port}`;
   serverProcess = spawn(
     process.execPath,
-    ["./node_modules/next/dist/bin/next", "dev", "--hostname", "127.0.0.1", "--port", String(port)],
+    ["./node_modules/next/dist/bin/next", "start", "--hostname", "127.0.0.1", "--port", String(port)],
     {
       cwd: workspaceRoot,
       env: {
@@ -112,7 +112,7 @@ before(async () => {
     await waitForServer(baseUrl, serverProcess);
   } catch (error) {
     serverProcess.kill("SIGTERM");
-    throw new Error(`${error instanceof Error ? error.message : "Server failed to start"}\n${stderr}`);
+      throw new Error(`${error instanceof Error ? error.message : "Server failed to start"}\n${stderr}`);
   }
 });
 

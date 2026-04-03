@@ -52,7 +52,7 @@ export const createItemInputSchema = z.object({
 export const updateItemInputSchema = z
   .object({
     title: nonEmptyTrimmed("Title", 120).optional(),
-    details: optionalTrimmed(4000).optional(),
+    details: z.string().trim().max(4000, "Must be 4000 characters or fewer").optional(),
   })
   .refine((value) => value.title !== undefined || value.details !== undefined, {
     message: "At least one field must be provided",
