@@ -1,4 +1,5 @@
 import { createComment, listComments, softDeleteComment, updateComment } from "./comments.ts";
+import { publishItemCreatedEvent } from "./item-events.ts";
 import {
   commentResultSchema,
   itemDetailResultSchema,
@@ -12,6 +13,7 @@ import {
 import {
   archiveItem,
   createItem,
+  getViewForItem,
   getItem,
   ItemNotFoundError,
   listItems,
@@ -48,7 +50,9 @@ export function getParkingLotItemDetail(id: string): ItemDetailResult {
 }
 
 export function createParkingLotItem(input: CreateItemInput): ItemResult {
-  return itemResultSchema.parse({ item: createItem(input) });
+  const item = createItem(input);
+  publishItemCreatedEvent({ itemId: item.id, view: getViewForItem(item) });
+  return itemResultSchema.parse({ item });
 }
 
 export function updateParkingLotItem(id: string, input: UpdateItemInput): ItemResult {

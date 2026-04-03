@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import styles from "@/components/parking-lot-app.module.css";
 import { type Comment, type Item, type ItemView } from "@/lib/schemas";
@@ -27,6 +27,12 @@ type ItemDetailResponse = ItemDetail;
 
 type CommentResponse = {
   comment: Comment;
+};
+
+type ItemCreatedEvent = {
+  type: "item-created";
+  itemId: string;
+  view: ItemView;
 };
 
 const viewLabels: Record<ItemView, string> = {
@@ -160,15 +166,92 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
     setEditingCommentBody("");
   }
 
+  const refreshItemsForView = useCallback(async (nextView: ItemView) => {
+    const data = await requestJson<ItemsResponse>(`/api/items?view=${nextView}`);
+
+    setItems(data.items);
+
+    if (!selectedId) {
+      return;
+    }
+
+    const selectedStillVisible = data.items.some((item) => item.id === selectedId);
+
+    if (selectedStillVisible) {
+      return;
+    }
+
+    setSelectedId(null);
+    setSelectedDetail(null);
+    syncDrafts(null);
+    cancelCommentEdit();
+    setIsMobileDetailOpen(false);
+  }, [selectedId]);
+
+  useEffect(() => {
+    let isDisposed = false;
+    let reconnectTimer: number | null = null;
+    let source: EventSource | null = null;
+
+    function cleanupSource() {
+      if (source) {
+        source.close();
+        source = null;
+      }
+    }
+
+    function scheduleReconnect() {
+      if (isDisposed || reconnectTimer !== null) {
+        return;
+      }
+
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = null;
+        connect();
+      }, 1500);
+    }
+
+    function connect() {
+      cleanupSource();
+      const nextSource = new EventSource("/api/items/events");
+      source = nextSource;
+
+      nextSource.addEventListener("item-created", (event) => {
+        const payload = JSON.parse((event as MessageEvent<string>).data) as ItemCreatedEvent;
+
+        if (payload.view !== view) {
+          return;
+        }
+
+        void refreshItemsForView(view);
+      });
+
+      nextSource.onerror = () => {
+        cleanupSource();
+        scheduleReconnect();
+      };
+    }
+
+    connect();
+
+    return () => {
+      isDisposed = true;
+
+      if (reconnectTimer !== null) {
+        window.clearTimeout(reconnectTimer);
+      }
+
+      cleanupSource();
+    };
+  }, [refreshItemsForView, view]);
+
   async function loadView(nextView: ItemView, options?: { status?: string }) {
     setError(null);
     setIsViewLoading(true);
 
     try {
-      const data = await requestJson<ItemsResponse>(`/api/items?view=${nextView}`);
-
       setView(nextView);
-      setItems(data.items);
+      await refreshItemsForView(nextView);
       setSelectedId(null);
       setSelectedDetail(null);
       syncDrafts(null);
