@@ -12,6 +12,7 @@ npm-debug.log*
 !.env.example
 
 # AI tooling local state
+.agents/
 .claude/skills/
 .claude/local*
 .claude/plans/
@@ -19,6 +20,7 @@ npm-debug.log*
 .claude/state/
 .claude/worktrees/
 .claude/*.local.*
+.opencode/skills/
 .opencode/skills/.skillshare-manifest.json
 .opencode/node_modules/
 .opencode/tmp/
@@ -26,6 +28,8 @@ npm-debug.log*
 .opencode/worktrees/
 .opencode/plans/
 .opencode/*.local.*
+.skillshare/config.yaml
+.skillshare/skills/
 .skillshare/logs/
 
 # OpenSpec local scratch files
