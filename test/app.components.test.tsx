@@ -110,7 +110,7 @@ describe("component exports", () => {
     expect(screen.getByText("Initial item")).toBeInTheDocument();
     expect(screen.getByText("Active view loaded.")).toHaveAttribute("aria-live", "polite");
     expect(screen.queryByLabelText("Title")).toBeNull();
-    expect(screen.getByText("Use the highlighted action to park the next item without confusing it with the list.")).toBeInTheDocument();
+    expect(screen.queryByText("Use the highlighted action to park the next item without confusing it with the list.")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Add item" }));
     expect(screen.getByRole("button", { name: "Close composer" })).toHaveAttribute("aria-expanded", "true");
@@ -118,7 +118,7 @@ describe("component exports", () => {
 
     await user.click(screen.getByRole("button", { name: "Close composer" }));
     expect(screen.queryByLabelText("Title")).toBeNull();
-    expect(screen.getByText("Use the highlighted action to park the next item without confusing it with the list.")).toBeInTheDocument();
+    expect(screen.queryByText("Use the highlighted action to park the next item without confusing it with the list.")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Add item" }));
     await user.type(screen.getByLabelText("Title"), "Created item");

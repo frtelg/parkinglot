@@ -765,11 +765,7 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
                 {isCreateFormOpen ? "Close composer" : "Add item"}
               </button>
 
-              <p className={styles.createHint}>
-                {isCreateFormOpen
-                  ? "The inline form is open below."
-                  : "Use the highlighted action to park the next item without confusing it with the list."}
-              </p>
+              {isCreateFormOpen ? <p className={styles.createHint}>The inline form is open below.</p> : null}
             </div>
 
             {isCreateFormOpen ? (

@@ -73,7 +73,7 @@ The system SHALL present item states and actions in a way that keeps the list vi
 
 #### Scenario: Add-item affordance does not resemble a list item
 - **WHEN** the user views the collapsed add-item control in the overview
-- **THEN** the system presents it as a button-first call to action instead of a card-like surface that could be mistaken for an item in the list
+- **THEN** the system presents it as a button-first call to action instead of a card-like surface that could be mistaken for an item in the list, without requiring redundant helper copy for the CTA to make sense
 
 #### Scenario: Add-item action stands out visually
 - **WHEN** the user scans the overview for where to create a new item
