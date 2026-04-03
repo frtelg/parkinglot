@@ -109,6 +109,16 @@ describe("component exports", () => {
 
     expect(screen.getByText("Initial item")).toBeInTheDocument();
     expect(screen.getByText("Active view loaded.")).toHaveAttribute("aria-live", "polite");
+    expect(screen.queryByLabelText("Title")).toBeNull();
+    expect(screen.getByText("Use the highlighted action to park the next item without confusing it with the list.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Add item" }));
+    expect(screen.getByRole("button", { name: "Close composer" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("The inline form is open below.")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Close composer" }));
+    expect(screen.queryByLabelText("Title")).toBeNull();
+    expect(screen.getByText("Use the highlighted action to park the next item without confusing it with the list.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add item" }));
     await user.type(screen.getByLabelText("Title"), "Created item");
@@ -164,7 +174,7 @@ describe("component exports", () => {
         currentItem = {
           ...currentItem,
           title: "Renamed item",
-          details: "Updated details",
+          details: "Updated details with docs\nhttps://example.com/guide, plus plain text around it.",
           updatedAt: "2026-04-03T13:00:00.000Z",
         };
 
@@ -313,6 +323,9 @@ describe("component exports", () => {
     expect(screen.getByText("Existing note")).toBeInTheDocument();
     const detailPanel = screen.getByText("Keep the item focused without losing the thread around it.").closest("section");
     expect(detailPanel).toBeTruthy();
+    const descriptionPreview = screen.getByText("Description preview").closest("div");
+    expect(descriptionPreview).toBeTruthy();
+    expect(within(descriptionPreview as HTMLElement).getByText("Initial details")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Jump to composer" }));
     await user.type(screen.getByLabelText("New comment"), "New note");
@@ -328,7 +341,10 @@ describe("component exports", () => {
     await user.clear(screen.getByLabelText("Title"));
     await user.type(screen.getByLabelText("Title"), "Renamed item");
     await user.clear(screen.getByLabelText("Details"));
-    await user.type(screen.getByLabelText("Details"), "Updated details");
+    await user.type(
+      screen.getByLabelText("Details"),
+      "Updated details with docs\nhttps://example.com/guide, plus plain text around it.",
+    );
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
@@ -337,6 +353,15 @@ describe("component exports", () => {
         expect.objectContaining({ method: "PATCH" }),
       );
     });
+
+    const detailLink = await screen.findByRole("link", { name: "https://example.com/guide" });
+    expect(detailLink).toHaveAttribute("href", "https://example.com/guide");
+    expect(detailLink).toHaveAttribute("target", "_blank");
+    expect(detailLink).toHaveAttribute("rel", expect.stringContaining("noreferrer"));
+    expect(detailLink).toHaveAttribute("rel", expect.stringContaining("noopener"));
+    expect(within(descriptionPreview as HTMLElement).getByText(/Updated details with docs/)).toBeInTheDocument();
+    expect(within(descriptionPreview as HTMLElement).getByText(/plus plain text around it\./)).toBeInTheDocument();
+    expect((descriptionPreview as HTMLElement).textContent).toContain("Updated details with docs\nhttps://example.com/guide, plus plain text around it.");
 
     const existingNoteCard = screen.getByText("Existing note").closest("li");
     expect(existingNoteCard).toBeTruthy();

@@ -53,7 +53,6 @@
 .heroNote,
 .overviewPanel,
 .detailPanel,
-.createSummary,
 .createCard,
 .errorBanner,
 .emptyState,
@@ -214,13 +213,17 @@
   margin-bottom: 16px;
 }
 
-.createSummary {
-  padding: 12px 14px;
+.createLead {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  background: rgba(255, 255, 255, 0.02);
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.createHint {
+  margin: 0;
+  max-width: 38ch;
+  color: var(--text-muted);
+  line-height: 1.5;
 }
 
 .createCard {
@@ -259,6 +262,28 @@
   cursor: pointer;
 }
 
+.createCtaButton {
+  padding: 11px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 212, 74, 0.38);
+  background: linear-gradient(135deg, rgba(255, 212, 74, 0.22), rgba(249, 115, 22, 0.3));
+  color: #fff4c2;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.createCtaButton:hover {
+  border-color: rgba(255, 212, 74, 0.54);
+  background: linear-gradient(135deg, rgba(255, 212, 74, 0.3), rgba(249, 115, 22, 0.38));
+}
+
+.createCtaButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .primaryButton {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text);
@@ -273,6 +298,7 @@
 
 .primaryButton:disabled,
 .secondaryButton:disabled,
+.createCtaButton:disabled,
 .tab:disabled,
 .activeTab:disabled {
   cursor: not-allowed;
@@ -378,6 +404,38 @@
   gap: 16px;
 }
 
+.detailDescriptionPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.detailDescriptionPreviewLabel {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+}
+
+.detailDescriptionText {
+  color: var(--text-muted);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.detailDescriptionLink {
+  color: #ffd56f;
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.detailDescriptionLink:hover {
+  color: #ffe08d;
+}
+
 .actions,
 .commentActions,
 .inlineFields,
@@ -473,6 +531,7 @@
 .field select:focus-visible,
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
+.createCtaButton:focus-visible,
 .tab:focus-visible,
 .activeTab:focus-visible,
 .itemCard:focus-visible,
@@ -551,9 +610,8 @@
     display: flex;
   }
 
-  .createSummary {
+  .createLead {
     flex-direction: column;
-    align-items: stretch;
   }
 
   .detailOverlay {

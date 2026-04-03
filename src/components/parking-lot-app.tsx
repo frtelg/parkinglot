@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState, type DragEvent, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type DragEvent, type FormEvent, type ReactNode } from "react";
 
 import styles from "@/components/parking-lot-app.module.css";
 import { type Comment, type Item, type ItemView } from "@/lib/schemas";
@@ -56,6 +56,8 @@ const authorTypeLabels: Record<Comment["authorType"], string> = {
   agent: "Agent",
   system: "System",
 };
+
+const detailUrlPattern = /https?:\/\/[^\s]+/g;
 
 function formatTimestamp(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -127,6 +129,65 @@ async function fetchItemDetail(itemId: string) {
   return requestJson<ItemDetailResponse>(`/api/items/${itemId}`);
 }
 
+function splitTrailingUrlPunctuation(value: string) {
+  const trailing = value.match(/[),.!?\]}]+$/)?.[0] ?? "";
+
+  if (trailing.length === 0) {
+    return { url: value, trailingText: "" };
+  }
+
+  return {
+    url: value.slice(0, -trailing.length),
+    trailingText: trailing,
+  };
+}
+
+function renderLinkedDescription(text: string): ReactNode {
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(detailUrlPattern)) {
+    const start = match.index ?? 0;
+    const rawUrl = match[0];
+
+    if (start > lastIndex) {
+      nodes.push(text.slice(lastIndex, start));
+    }
+
+    const { url, trailingText } = splitTrailingUrlPunctuation(rawUrl);
+
+    if (url.length > 0) {
+      nodes.push(
+        <a
+          key={`detail-link-${start}`}
+          className={styles.detailDescriptionLink}
+          href={url}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          {url}
+        </a>,
+      );
+    }
+
+    if (trailingText.length > 0) {
+      nodes.push(trailingText);
+    }
+
+    lastIndex = start + rawUrl.length;
+  }
+
+  if (nodes.length === 0) {
+    return text;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
 export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLotAppProps) {
   const [view, setView] = useState<ItemView>("active");
   const [items, setItems] = useState<Item[]>(initialItems);
@@ -153,6 +214,7 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
   const suppressNextOpenRef = useRef(false);
   const listRegionId = useId();
   const detailRegionId = useId();
+  const createFormId = useId();
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
@@ -692,23 +754,26 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
           </div>
 
           <div className={styles.createSection}>
-            <div className={styles.createSummary}>
-              <div>
-                <h3>Add a new item</h3>
-                <p>Keep capture close without letting it outrank the list.</p>
-              </div>
+            <div className={styles.createLead}>
               <button
                 type="button"
-                className={styles.primaryButton}
+                className={styles.createCtaButton}
                 aria-expanded={isCreateFormOpen}
+                aria-controls={createFormId}
                 onClick={() => setIsCreateFormOpen((current) => !current)}
               >
-                {isCreateFormOpen ? "Close" : "Add item"}
+                {isCreateFormOpen ? "Close composer" : "Add item"}
               </button>
+
+              <p className={styles.createHint}>
+                {isCreateFormOpen
+                  ? "The inline form is open below."
+                  : "Use the highlighted action to park the next item without confusing it with the list."}
+              </p>
             </div>
 
             {isCreateFormOpen ? (
-              <form className={styles.createCard} onSubmit={handleCreateItem}>
+              <form id={createFormId} className={styles.createCard} onSubmit={handleCreateItem}>
                 <label className={styles.field}>
                   <span>Title</span>
                   <input
@@ -848,6 +913,13 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
                         rows={8}
                       />
                     </label>
+
+                    <div className={styles.detailDescriptionPreview}>
+                      <span className={styles.detailDescriptionPreviewLabel}>Description preview</span>
+                      <div className={styles.detailDescriptionText}>
+                        {draftDetails ? renderLinkedDescription(draftDetails) : "No extra details yet."}
+                      </div>
+                    </div>
 
                     <div className={styles.actions}>
                       <button type="submit" className={styles.primaryButton} disabled={pendingAction === "save-item"}>

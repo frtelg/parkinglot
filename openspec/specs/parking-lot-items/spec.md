@@ -42,14 +42,22 @@ The system SHALL provide a visual overview of items and open a detailed item vie
 
 #### Scenario: Open item details from the list
 - **WHEN** the user selects an item from the overview
-- **THEN** the system opens a detail view above the overview containing the item's full information, status, and comments
+- **THEN** the system opens a detail view above the overview containing the item's full information, status, comments, and a readable description presentation
+
+#### Scenario: URLs in item details are clickable
+- **WHEN** an item's description shown in the detail view contains explicit URLs
+- **THEN** the system renders those URLs as clickable links without requiring the user to copy and paste them manually
+
+#### Scenario: Non-link text remains plain text
+- **WHEN** an item's description includes normal prose alongside URLs
+- **THEN** the system preserves the surrounding text as plain text rather than treating the description as rich formatted content
 
 #### Scenario: Switching lifecycle views does not auto-open detail
 - **WHEN** the user switches between Active, Resolved, and Archived views
 - **THEN** the system clears the current detail selection until the user explicitly selects another item in that view
 
 ### Requirement: The overview prioritizes clarity for parallel work
-The system SHALL present item states and actions in a way that keeps the list visually primary, reduces unnecessary interface noise, and preserves a user-controlled working order for active items.
+The system SHALL present item states and actions in a way that keeps the list visually primary, reduces unnecessary interface noise, preserves a user-controlled working order for active items, and makes the add-item entry point clearly distinguishable from item rows.
 
 #### Scenario: List-first initial layout
 - **WHEN** the user opens the application
@@ -62,6 +70,14 @@ The system SHALL present item states and actions in a way that keeps the list vi
 #### Scenario: Progressive disclosure for item creation
 - **WHEN** the user is scanning the overview but is not actively creating a new item
 - **THEN** the system shows a compact add-item affordance instead of an always-expanded creation form
+
+#### Scenario: Add-item affordance does not resemble a list item
+- **WHEN** the user views the collapsed add-item control in the overview
+- **THEN** the system presents it as a button-first call to action instead of a card-like surface that could be mistaken for an item in the list
+
+#### Scenario: Add-item action stands out visually
+- **WHEN** the user scans the overview for where to create a new item
+- **THEN** the system uses accent styling on the add-item control so the creation action is easier to find than surrounding neutral controls
 
 #### Scenario: Quieter supporting chrome
 - **WHEN** the user scans the page shell and overview surfaces
@@ -96,4 +112,3 @@ The system SHALL preserve item and comment data integrity when the same local us
 #### Scenario: Update item in another window
 - **WHEN** a user updates an item in one local window and later views that item from another local window
 - **THEN** the system presents the persisted latest state without corrupting the item or its comments
-
