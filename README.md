@@ -18,6 +18,23 @@ Local-first parking lot for tracking parallel work items, lifecycle state, and c
 - SQLite via `better-sqlite3`
 - OpenSpec for change artifacts and task tracking
 
+## AI Tooling Status
+
+This repo now ships a global installer for attaching the parking lot tool to supported AI tools.
+
+- OpenCode: `parking-lot-tool` skill plus global `~/.config/opencode/opencode.json`
+- Claude Code: `parking-lot-tool` skill plus global `~/.claude.json`
+- Codex: `parking-lot-tool` skill plus global `~/.codex/config.toml`
+- GitHub Copilot in VS Code: global user `mcp.json`
+
+Current canonical sources:
+
+- Shared parking lot skill source: `ai/skills/parking-lot-tool/`
+- MCP config templates: `ai/config/*`
+- Installer: `scripts/install-ai-tooling.mjs`
+
+The installer merges into your existing global tool config. It only adds or updates the `parkinglot` MCP entry and replaces only the `parking-lot-tool` skill directory.
+
 ## Installation
 
 1. Install Node.js 24.
@@ -35,6 +52,105 @@ npm run dev
 ```
 
 4. Open `http://localhost:3000`.
+
+## Attach To An AI Tool
+
+Run the installer from the repo root:
+
+```bash
+npm run ai:install
+```
+
+That installs the parking lot skill and MCP wiring into your global AI tool configuration.
+
+If you only want one tool:
+
+```bash
+npm run ai:install -- --tool opencode
+npm run ai:install -- --tool claude
+npm run ai:install -- --tool codex
+npm run ai:install -- --tool copilot
+```
+
+Optional modes:
+
+```bash
+npm run ai:install -- --skills-only
+npm run ai:install -- --mcp-only
+```
+
+### What The Installer Writes
+
+- OpenCode MCP config: `~/.config/opencode/opencode.json`
+- Claude Code MCP config: `~/.claude.json`
+- Codex MCP config: `~/.codex/config.toml`
+- GitHub Copilot user MCP config: `~/Library/Application Support/Code/User/mcp.json`
+- Shared skills copied into:
+  - `~/.config/opencode/skills/`
+  - `~/.claude/skills/`
+  - `~/.agents/skills/`
+
+The installer does not replace the full config file for any tool.
+
+- Existing unrelated MCP servers remain untouched.
+- Existing `parkinglot` MCP entries are updated in place.
+- Existing `parking-lot-tool` skill directories are refreshed from this repo.
+
+### Tool-Specific Notes
+
+- OpenCode: restart OpenCode after install. The `parkinglot` MCP server is added to `~/.config/opencode/opencode.json`, and the `parking-lot-tool` skill is available from `~/.config/opencode/skills/`.
+- Claude Code: restart Claude Code after install. The `parkinglot` MCP server is added to `~/.claude.json`, and the `parking-lot-tool` skill is available from `~/.claude/skills/`.
+- Codex: restart Codex after install. Codex reads the global MCP entry from `~/.codex/config.toml` and scans `~/.agents/skills/` for the installed skill.
+- GitHub Copilot: restart VS Code after install. The `parkinglot` server is added to your user MCP config at `~/Library/Application Support/Code/User/mcp.json`.
+
+### If You Only Want One Tool
+
+1. Start the app with `npm run dev`.
+2. Run `npm run ai:install -- --tool <tool-name>`.
+3. Restart or reload that tool.
+4. Ask it to use the `parkinglot` MCP server to list or update items.
+
+Example:
+
+```text
+List the active parking lot items using the parkinglot MCP server.
+```
+
+### Example Prompts
+
+Use prompts like these after the installer is in place and the app is running:
+
+```text
+List the active parking lot items using the parkinglot MCP server.
+```
+
+```text
+Show me item 12 with its comments using the parkinglot MCP server.
+```
+
+```text
+Create a new parking lot item titled "Fix flaky API smoke test" with details "Intermittent failure in local smoke run" using the parkinglot MCP server.
+```
+
+```text
+Update parking lot item 12 and change the title to "Finalize MCP installer docs" using the parkinglot MCP server.
+```
+
+```text
+Add a comment to parking lot item 12 saying "Installer verified locally on Claude, Codex, OpenCode, and Copilot workspace config" using the parkinglot MCP server.
+```
+
+```text
+Resolve parking lot item 12 using the parkinglot MCP server.
+```
+
+```text
+Archive parking lot item 12 using the parkinglot MCP server.
+```
+
+```text
+Unarchive parking lot item 12 using the parkinglot MCP server.
+```
 
 ## npm Registry
 
@@ -92,19 +208,15 @@ npm run build
 
 ## MCP Adapter
 
-The repo includes a simple local MCP-style adapter that exposes the same item and comment operations through tool calls.
+The repo includes a local stdio MCP server that exposes the same item and comment operations through tool calls. The AI-tool installer above wires this server into supported clients.
 
-List tools:
+Entrypoint:
 
 ```bash
 npm run mcp
 ```
 
-Call a tool:
-
-```bash
-printf '%s' '{"method":"tools/call","params":{"name":"list_items","arguments":{"view":"active"}}}' | npm run mcp
-```
+The server speaks framed MCP messages over stdio, including `initialize`, `notifications/initialized`, `tools/list`, and `tools/call`.
 
 Supported tool names:
 
@@ -124,7 +236,8 @@ Supported tool names:
 - Shared service layer: `src/lib/parking-lot.ts`
 - Shared response contracts: `src/lib/contracts.ts`
 - MCP adapter: `src/lib/mcp-server.ts` and `scripts/parking-lot-mcp.mjs`
-- OpenCode repo skill: `.opencode/skills/parking-lot-agent/SKILL.md`
+- Canonical repo skill source: `ai/skills/parking-lot-tool/`
+- AI-tool installer: `scripts/install-ai-tooling.mjs`
 
 The intent is that web UI, REST callers, and agent runtimes all reuse the same item and comment semantics rather than reimplementing business rules separately.
 

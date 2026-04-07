@@ -6,6 +6,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
+    "ai:install": "node scripts/install-ai-tooling.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

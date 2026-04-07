@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "parkinglot": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${workspaceFolder}/scripts/parking-lot-mcp.mjs"]
+    }
+  }
+}

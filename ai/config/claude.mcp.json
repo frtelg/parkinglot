@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "parkinglot": {
+      "command": "node",
+      "args": ["scripts/parking-lot-mcp.mjs"]
+    }
+  }
+}

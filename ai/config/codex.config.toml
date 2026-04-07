@@ -1,0 +1,8 @@
+# parkinglot-mcp:start
+[mcp_servers.parkinglot]
+command = "node"
+args = ["scripts/parking-lot-mcp.mjs"]
+cwd = "."
+startup_timeout_sec = 10
+tool_timeout_sec = 60
+# parkinglot-mcp:end
