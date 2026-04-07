@@ -35,14 +35,20 @@ describe("service, errors, events, and MCP exports", () => {
     const updated = parkingLot.updateParkingLotItem(created.item.id, { details: "Updated by service" });
     expect(updated.item.details).toBe("Updated by service");
 
+    const snoozed = parkingLot.snoozeParkingLotItem(created.item.id, {
+      snoozedUntil: "2099-04-03T14:00:00.000Z",
+    });
+    expect(snoozed.item.snoozedUntil).toBe("2099-04-03T14:00:00.000Z");
+    expect(parkingLot.listParkingLotItems("snoozed").items.map((item) => item.id)).toContain(created.item.id);
+
     const second = parkingLot.createParkingLotItem({
       title: "Second service item",
       details: "Created through service",
     });
     const reordered = parkingLot.reorderParkingLotActiveItems({
-      itemIds: [second.item.id, created.item.id],
+      itemIds: [second.item.id],
     });
-    expect(reordered.items.map((item) => item.id)).toEqual([second.item.id, created.item.id]);
+    expect(reordered.items.map((item) => item.id)).toEqual([second.item.id]);
 
     const createdComment = parkingLot.createParkingLotComment(created.item.id, {
       body: "Service comment",
@@ -89,7 +95,7 @@ describe("service, errors, events, and MCP exports", () => {
 
   test("route error handler maps known and unknown errors", async () => {
     const { CommentNotFoundError, DeletedCommentError } = await import("@/lib/comments");
-    const { ItemNotFoundError } = await import("@/lib/items");
+    const { InvalidSnoozeStateError, ItemNotFoundError } = await import("@/lib/items");
     const { handleRouteError } = await import("@/lib/api-errors");
 
     const validationError = new ZodError([
@@ -113,6 +119,9 @@ describe("service, errors, events, and MCP exports", () => {
 
     const deletedResponse = handleRouteError(new DeletedCommentError("deleted-comment"));
     expect(deletedResponse.status).toBe(409);
+
+    const snoozeResponse = handleRouteError(new InvalidSnoozeStateError("snoozed-item"));
+    expect(snoozeResponse.status).toBe(409);
 
     const unknownResponse = handleRouteError(new Error("boom"));
     expect(unknownResponse.status).toBe(500);
@@ -146,6 +155,7 @@ describe("service, errors, events, and MCP exports", () => {
         "create_item",
         "update_item",
         "resolve_item",
+        "snooze_item",
         "archive_item",
         "unarchive_item",
         "create_comment",
@@ -165,6 +175,15 @@ describe("service, errors, events, and MCP exports", () => {
 
     const updated = mcp.callMcpTool("update_item", { id: itemId, title: "Updated MCP item" });
     expect((updated.structuredContent as { item: { title: string } }).item.title).toBe("Updated MCP item");
+
+    const snoozed = mcp.callMcpTool("snooze_item", {
+      id: itemId,
+      snoozedUntil: "2099-04-03T14:00:00.000Z",
+    });
+    expect((snoozed.structuredContent as { item: { snoozedUntil: string | null } }).item.snoozedUntil).toBe(
+      "2099-04-03T14:00:00.000Z",
+    );
+    expect(mcp.callMcpTool("list_items", { view: "snoozed" }).content[0]?.text).toContain("Updated MCP item");
 
     const createdComment = mcp.callMcpTool("create_comment", {
       itemId,

@@ -6,12 +6,14 @@ import {
   itemSchema,
   itemStatusSchema,
   itemViewSchema,
+  snoozeItemInputSchema,
   type CreateItemInput,
   type Item,
   type ItemStatus,
   type ItemView,
   reorderActiveItemsInputSchema,
   type ReorderActiveItemsInput,
+  type SnoozeItemInput,
   type UpdateItemInput,
   updateItemInputSchema,
 } from "./schemas.ts";
@@ -23,6 +25,7 @@ type ItemRow = {
   status: ItemStatus;
   archived_at: string | null;
   resolved_at: string | null;
+  snoozed_until: string | null;
   active_sort_order: number | null;
   created_at: string;
   updated_at: string;
@@ -42,6 +45,13 @@ export class InvalidActiveItemOrderError extends Error {
   }
 }
 
+export class InvalidSnoozeStateError extends Error {
+  constructor(id: string) {
+    super(`Item ${id} cannot be snoozed unless it is active and not already archived or snoozed`);
+    this.name = "InvalidSnoozeStateError";
+  }
+}
+
 function toItem(row: ItemRow): Item {
   return itemSchema.parse({
     id: row.id,
@@ -50,16 +60,54 @@ function toItem(row: ItemRow): Item {
     status: row.status,
     archivedAt: row.archived_at,
     resolvedAt: row.resolved_at,
+    snoozedUntil: row.snoozed_until,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
 }
 
+function normalizeExpiredSnoozes(now = new Date().toISOString()) {
+  const expiredRows = db
+    .prepare(
+      `
+        SELECT id
+        FROM items
+        WHERE archived_at IS NULL
+          AND status = 'active'
+          AND snoozed_until IS NOT NULL
+          AND snoozed_until <= ?
+        ORDER BY snoozed_until ASC, created_at ASC, id ASC
+      `,
+    )
+    .all(now) as Array<{ id: string }>;
+
+  if (expiredRows.length === 0) {
+    return;
+  }
+
+  const startSortOrder = getNextActiveSortOrder();
+  const wakeItem = db.prepare(
+    `
+      UPDATE items
+      SET snoozed_until = NULL, active_sort_order = ?
+      WHERE id = ?
+    `,
+  );
+
+  db.transaction((rows: Array<{ id: string }>, start: number) => {
+    rows.forEach((row, index) => {
+      wakeItem.run(start + index, row.id);
+    });
+  })(expiredRows, startSortOrder);
+}
+
 function getItemRow(id: string) {
+  normalizeExpiredSnoozes();
+
   return db
     .prepare(
       `
-        SELECT id, title, details, status, archived_at, resolved_at, active_sort_order, created_at, updated_at
+        SELECT id, title, details, status, archived_at, resolved_at, snoozed_until, active_sort_order, created_at, updated_at
         FROM items
         WHERE id = ?
       `,
@@ -73,7 +121,7 @@ function getNextActiveSortOrder() {
       `
         SELECT COALESCE(MAX(active_sort_order), -1) + 1 AS next_sort_order
         FROM items
-        WHERE archived_at IS NULL AND status = 'active'
+        WHERE archived_at IS NULL AND status = 'active' AND snoozed_until IS NULL
       `,
     )
     .get() as { next_sort_order: number };
@@ -107,30 +155,29 @@ export function touchItem(id: string, updatedAt: string) {
 
 export function listItems(view: ItemView) {
   const parsedView = itemViewSchema.parse(view);
+  normalizeExpiredSnoozes();
 
-  let whereClause = "archived_at IS NULL AND status = 'active'";
+  let whereClause = "archived_at IS NULL AND status = 'active' AND snoozed_until IS NULL";
+  let orderByClause = "active_sort_order ASC, updated_at DESC, created_at DESC, id ASC";
 
-  if (parsedView === "resolved") {
+  if (parsedView === "snoozed") {
+    whereClause = "archived_at IS NULL AND status = 'active' AND snoozed_until IS NOT NULL";
+    orderByClause = "snoozed_until ASC, updated_at DESC, created_at DESC, id ASC";
+  } else if (parsedView === "resolved") {
     whereClause = "archived_at IS NULL AND status = 'resolved'";
-  }
-
-  if (parsedView === "archived") {
+    orderByClause = "resolved_at DESC, updated_at DESC, created_at DESC, id ASC";
+  } else if (parsedView === "archived") {
     whereClause = "archived_at IS NOT NULL";
+    orderByClause = "archived_at DESC, updated_at DESC, created_at DESC, id ASC";
   }
 
   const rows = db
     .prepare(
       `
-        SELECT id, title, details, status, archived_at, resolved_at, active_sort_order, created_at, updated_at
+        SELECT id, title, details, status, archived_at, resolved_at, snoozed_until, active_sort_order, created_at, updated_at
         FROM items
         WHERE ${whereClause}
-        ORDER BY
-          CASE
-            WHEN archived_at IS NULL AND status = 'active' THEN active_sort_order
-          END ASC,
-          updated_at DESC,
-          created_at DESC,
-          id ASC
+        ORDER BY ${orderByClause}
       `,
     )
     .all() as ItemRow[];
@@ -150,8 +197,8 @@ export function createItem(input: CreateItemInput) {
 
   db.prepare(
     `
-      INSERT INTO items (id, title, details, status, archived_at, resolved_at, active_sort_order, created_at, updated_at)
-      VALUES (?, ?, ?, 'active', NULL, NULL, ?, ?, ?)
+      INSERT INTO items (id, title, details, status, archived_at, resolved_at, snoozed_until, active_sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, 'active', NULL, NULL, NULL, ?, ?, ?)
     `,
   ).run(id, parsed.title, parsed.details, getNextActiveSortOrder(), now, now);
 
@@ -176,6 +223,27 @@ export function updateItem(id: string, input: UpdateItemInput) {
   return requireItem(id);
 }
 
+export function snoozeItem(id: string, input: SnoozeItemInput) {
+  const item = requireItem(id);
+  const parsed = snoozeItemInputSchema.parse(input);
+
+  if (item.archivedAt || item.status !== itemStatusSchema.enum.active || item.snoozedUntil) {
+    throw new InvalidSnoozeStateError(id);
+  }
+
+  const updatedAt = new Date().toISOString();
+
+  db.prepare(
+    `
+      UPDATE items
+      SET snoozed_until = ?, updated_at = ?, active_sort_order = NULL
+      WHERE id = ?
+    `,
+  ).run(parsed.snoozedUntil, updatedAt, id);
+
+  return requireItem(id);
+}
+
 export function resolveItem(id: string) {
   requireItem(id);
   const resolvedAt = new Date().toISOString();
@@ -183,7 +251,7 @@ export function resolveItem(id: string) {
   db.prepare(
     `
       UPDATE items
-      SET status = 'resolved', resolved_at = ?, updated_at = ?, active_sort_order = NULL
+      SET status = 'resolved', resolved_at = ?, snoozed_until = NULL, updated_at = ?, active_sort_order = NULL
       WHERE id = ?
     `,
   ).run(resolvedAt, resolvedAt, id);
@@ -198,7 +266,7 @@ export function archiveItem(id: string) {
   db.prepare(
     `
       UPDATE items
-      SET archived_at = ?, updated_at = ?, active_sort_order = NULL
+      SET archived_at = ?, snoozed_until = NULL, updated_at = ?, active_sort_order = NULL
       WHERE id = ?
     `,
   ).run(archivedAt, archivedAt, id);
@@ -214,7 +282,7 @@ export function unarchiveItem(id: string) {
   db.prepare(
     `
       UPDATE items
-      SET archived_at = NULL, updated_at = ?, active_sort_order = ?
+      SET archived_at = NULL, snoozed_until = NULL, updated_at = ?, active_sort_order = ?
       WHERE id = ?
     `,
   ).run(updatedAt, nextActiveSortOrder, id);
@@ -255,6 +323,10 @@ export function reorderActiveItems(input: ReorderActiveItemsInput) {
 export function getViewForItem(item: Item) {
   if (item.archivedAt) {
     return "archived" as const;
+  }
+
+  if (item.status === itemStatusSchema.enum.active && item.snoozedUntil) {
+    return "snoozed" as const;
   }
 
   return item.status === itemStatusSchema.enum.resolved ? "resolved" : "active";

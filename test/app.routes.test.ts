@@ -65,6 +65,9 @@ describe("route exports", () => {
     const listPayload = (await readJson(listResponse)) as { items: Array<{ title: string }> };
     expect(listPayload.items[0]?.title).toBe("Route item");
 
+    const snoozedListResponse = await route.GET(new NextRequest("http://localhost/api/items?view=snoozed"));
+    expect(snoozedListResponse.status).toBe(200);
+
     const defaultListResponse = await route.GET(new NextRequest("http://localhost/api/items"));
     expect(defaultListResponse.status).toBe(200);
 
@@ -124,6 +127,7 @@ describe("route exports", () => {
     const commentRoute = await import("@/app/api/items/[id]/comments/[commentId]/route");
     const reorderRoute = await import("@/app/api/items/reorder/route");
     const resolveRoute = await import("@/app/api/items/[id]/resolve/route");
+    const snoozeRoute = await import("@/app/api/items/[id]/snooze/route");
     const archiveRoute = await import("@/app/api/items/[id]/archive/route");
     const unarchiveRoute = await import("@/app/api/items/[id]/unarchive/route");
 
@@ -135,6 +139,7 @@ describe("route exports", () => {
     expect(commentRoute.dynamic).toBe("force-dynamic");
     expect(reorderRoute.dynamic).toBe("force-dynamic");
     expect(resolveRoute.dynamic).toBe("force-dynamic");
+    expect(snoozeRoute.dynamic).toBe("force-dynamic");
     expect(archiveRoute.dynamic).toBe("force-dynamic");
     expect(unarchiveRoute.dynamic).toBe("force-dynamic");
 
@@ -249,6 +254,25 @@ describe("route exports", () => {
     );
     expect(((await readJson(resolveResponse)) as { item: { status: string } }).item.status).toBe("resolved");
 
+    const snoozable = service.createParkingLotItem({ title: "Snoozable route item", details: "Snooze flow" });
+    const snoozeResponse = await snoozeRoute.POST(
+      new Request("http://localhost/api/items/id/snooze", {
+        method: "POST",
+        body: JSON.stringify({ snoozedUntil: "2099-04-03T14:00:00.000Z" }),
+      }) as never,
+      createRouteContext({ id: snoozable.item.id }),
+    );
+    expect(((await readJson(snoozeResponse)) as { item: { snoozedUntil: string | null } }).item.snoozedUntil).toBe(
+      "2099-04-03T14:00:00.000Z",
+    );
+
+    const snoozedItemsResponse = await (await import("@/app/api/items/route")).GET(
+      new NextRequest("http://localhost/api/items?view=snoozed"),
+    );
+    expect(((await readJson(snoozedItemsResponse)) as { items: Array<{ id: string }> }).items.map((item) => item.id)).toContain(
+      snoozable.item.id,
+    );
+
     const archiveResponse = await archiveRoute.POST(
       new Request("http://localhost/api/items/id/archive", { method: "POST" }) as never,
       createRouteContext({ id: itemId }),
@@ -272,6 +296,24 @@ describe("route exports", () => {
       createRouteContext({ id: "00000000-0000-0000-0000-000000000000" }),
     );
     expect(missingResolveResponse.status).toBe(404);
+
+    const invalidSnoozeResponse = await snoozeRoute.POST(
+      new Request("http://localhost/api/items/id/snooze", {
+        method: "POST",
+        body: JSON.stringify({ snoozedUntil: "2026-04-03T09:00:00.000Z" }),
+      }) as never,
+      createRouteContext({ id: secondActive.item.id }),
+    );
+    expect(invalidSnoozeResponse.status).toBe(400);
+
+    const missingSnoozeResponse = await snoozeRoute.POST(
+      new Request("http://localhost/api/items/id/snooze", {
+        method: "POST",
+        body: JSON.stringify({ snoozedUntil: "2099-04-03T14:30:00.000Z" }),
+      }) as never,
+      createRouteContext({ id: "00000000-0000-0000-0000-000000000000" }),
+    );
+    expect(missingSnoozeResponse.status).toBe(404);
 
     const missingUnarchiveResponse = await unarchiveRoute.POST(
       new Request("http://localhost/api/items/id/unarchive", { method: "POST" }) as never,

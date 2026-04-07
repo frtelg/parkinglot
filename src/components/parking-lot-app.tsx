@@ -41,15 +41,90 @@ type ItemCreatedEvent = {
 
 const viewLabels: Record<ItemView, string> = {
   active: "Active",
+  snoozed: "Snoozed",
   resolved: "Resolved",
   archived: "Archived",
 };
 
 const emptyMessages: Record<ItemView, string> = {
   active: "Nothing is parked right now. Add the next thing you are juggling.",
+  snoozed: "Snoozed items will wait here until their wake-up time arrives.",
   resolved: "Resolved work will collect here once something is finished.",
   archived: "Archived items will wait here when they stop deserving attention.",
 };
+
+const snoozeChoices = ["later-today", "tomorrow", "next-week", "custom"] as const;
+
+type SnoozeChoice = (typeof snoozeChoices)[number];
+
+const snoozeChoiceLabels: Record<SnoozeChoice, string> = {
+  "later-today": "Later today",
+  tomorrow: "Tomorrow",
+  "next-week": "Next week",
+  custom: "Custom",
+};
+
+function formatDateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatTimeInputValue(date: Date) {
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function roundUpToNextHour(date: Date) {
+  const next = new Date(date);
+  next.setMinutes(0, 0, 0);
+
+  if (date.getMinutes() !== 0 || date.getSeconds() !== 0 || date.getMilliseconds() !== 0) {
+    next.setHours(next.getHours() + 1);
+  }
+
+  return next;
+}
+
+function getDefaultSnoozeDateTime(choice: SnoozeChoice, now = new Date(Date.now())) {
+  const next = new Date(now);
+
+  if (choice === "later-today") {
+    next.setTime(now.getTime() + 4 * 60 * 60 * 1000);
+    return roundUpToNextHour(next);
+  }
+
+  if (choice === "tomorrow") {
+    next.setDate(next.getDate() + 1);
+    next.setHours(8, 0, 0, 0);
+    return next;
+  }
+
+  if (choice === "next-week") {
+    next.setDate(next.getDate() + 7);
+    next.setHours(8, 0, 0, 0);
+    return next;
+  }
+
+  return roundUpToNextHour(new Date(now.getTime() + 60 * 60 * 1000));
+}
+
+function toLocalDateTimeFields(date: Date) {
+  return {
+    date: formatDateInputValue(date),
+    time: formatTimeInputValue(date),
+  };
+}
+
+function buildSnoozedUntil(date: string, time: string) {
+  return new Date(`${date}T${time}`).toISOString();
+}
+
+function getInitialSnoozeFields() {
+  return toLocalDateTimeFields(getDefaultSnoozeDateTime("later-today"));
+}
 
 const authorTypeLabels: Record<Comment["authorType"], string> = {
   human: "Human",
@@ -68,9 +143,33 @@ function formatTimestamp(value: string) {
   }).format(new Date(value));
 }
 
+function formatHumanReadableDateTime(date: string, time: string) {
+  if (!date || !time) {
+    return "a custom time";
+  }
+
+  const nextDate = new Date(`${date}T${time}`);
+
+  if (Number.isNaN(nextDate.getTime())) {
+    return "a custom time";
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(nextDate);
+}
+
 function getStatusTone(item: Item) {
   if (item.archivedAt) {
     return styles.archivedBadge;
+  }
+
+  if (item.snoozedUntil) {
+    return styles.snoozedBadge;
   }
 
   return item.status === "resolved" ? styles.resolvedBadge : styles.activeBadge;
@@ -79,6 +178,10 @@ function getStatusTone(item: Item) {
 function getStatusLabel(item: Item) {
   if (item.archivedAt) {
     return "Archived";
+  }
+
+  if (item.snoozedUntil) {
+    return "Snoozed";
   }
 
   return item.status === "resolved" ? "Resolved" : "Active";
@@ -208,6 +311,9 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
   const [isViewLoading, setIsViewLoading] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [selectedSnoozeChoice, setSelectedSnoozeChoice] = useState<SnoozeChoice>("later-today");
+  const [snoozeDate, setSnoozeDate] = useState(() => getInitialSnoozeFields().date);
+  const [snoozeTime, setSnoozeTime] = useState(() => getInitialSnoozeFields().time);
   const [isMobileDetailOpen, setIsMobileDetailOpen] = useState(Boolean(initialSelectedDetail));
   const detailHeadingRef = useRef<HTMLHeadingElement>(null);
   const commentComposerRef = useRef<HTMLTextAreaElement>(null);
@@ -233,6 +339,17 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
 
     return () => window.cancelAnimationFrame(frame);
   }, [isMobileDetailOpen, selectedId]);
+
+  useEffect(() => {
+    if (!visibleDetail || visibleDetail.item.archivedAt || visibleDetail.item.status !== "active" || visibleDetail.item.snoozedUntil) {
+      return;
+    }
+
+    const nextFields = getInitialSnoozeFields();
+    setSelectedSnoozeChoice("later-today");
+    setSnoozeDate(nextFields.date);
+    setSnoozeTime(nextFields.time);
+  }, [visibleDetail?.item.id, visibleDetail?.item.archivedAt, visibleDetail?.item.status, visibleDetail?.item.snoozedUntil]);
 
   const closeDetail = useCallback(() => {
     setIsMobileDetailOpen(false);
@@ -277,6 +394,18 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
   function cancelCommentEdit() {
     setEditingCommentId(null);
     setEditingCommentBody("");
+  }
+
+  function applySnoozePreset(choice: SnoozeChoice) {
+    setSelectedSnoozeChoice(choice);
+
+    if (choice === "custom") {
+      return;
+    }
+
+    const nextFields = toLocalDateTimeFields(getDefaultSnoozeDateTime(choice));
+    setSnoozeDate(nextFields.date);
+    setSnoozeTime(nextFields.time);
   }
 
   const refreshItemsForView = useCallback(async (nextView: ItemView) => {
@@ -505,6 +634,28 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
       await loadView("archived", { status: `Archived ${data.item.title}.` });
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Unable to archive item");
+    } finally {
+      setPendingAction(null);
+    }
+  }
+
+  async function handleSnooze() {
+    if (!selectedItem) {
+      return;
+    }
+
+    setPendingAction("snooze-item");
+
+    try {
+      const snoozedUntil = buildSnoozedUntil(snoozeDate, snoozeTime);
+      const data = await requestJson<ItemResponse>(`/api/items/${selectedItem.id}/snooze`, {
+        method: "POST",
+        body: JSON.stringify({ snoozedUntil }),
+      });
+
+      await loadView("snoozed", { status: `Snoozed ${data.item.title} until ${formatTimestamp(snoozedUntil)}.` });
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Unable to snooze item");
     } finally {
       setPendingAction(null);
     }
@@ -953,6 +1104,77 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
                         </button>
                       )}
                     </div>
+
+                    {!visibleDetail.item.archivedAt && visibleDetail.item.status === "active" && !visibleDetail.item.snoozedUntil ? (
+                      <div className={styles.snoozePanel} aria-labelledby="snooze-panel-heading">
+                        <h3 id="snooze-panel-heading" className={styles.snoozeHeading}>
+                          Pause this item
+                        </h3>
+                        <p className={styles.snoozeHelp}>Move it out of Active for a while, then let it return automatically.</p>
+                        <div className={styles.snoozeChoiceGroup} role="radiogroup" aria-label="Snooze duration presets">
+                          {snoozeChoices.map((choice) => {
+                            const isSelected = selectedSnoozeChoice === choice;
+
+                            return (
+                              <label
+                                key={choice}
+                                className={isSelected ? styles.snoozeChoiceActive : styles.snoozeChoice}
+                              >
+                                <input
+                                  type="radio"
+                                  name="snooze-duration"
+                                  aria-label={snoozeChoiceLabels[choice]}
+                                  value={choice}
+                                  checked={isSelected}
+                                  onChange={() => applySnoozePreset(choice)}
+                                  disabled={pendingAction === "snooze-item"}
+                                />
+                                <span>{snoozeChoiceLabels[choice]}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                        <div className={styles.snoozeDateTimeRow}>
+                          <label className={styles.snoozeInputField}>
+                            <span>Date</span>
+                            <input
+                              type="date"
+                              value={snoozeDate}
+                              onChange={(event) => {
+                                setSelectedSnoozeChoice("custom");
+                                setSnoozeDate(event.target.value);
+                              }}
+                              disabled={pendingAction === "snooze-item"}
+                            />
+                          </label>
+                          <label className={styles.snoozeInputField}>
+                            <span>Time</span>
+                            <input
+                              type="time"
+                              value={snoozeTime}
+                              onChange={(event) => {
+                                setSelectedSnoozeChoice("custom");
+                                setSnoozeTime(event.target.value);
+                              }}
+                              disabled={pendingAction === "snooze-item"}
+                            />
+                          </label>
+                        </div>
+                        <div className={styles.snoozeActionRow}>
+                          <span className={styles.snoozeSummary}>
+                            Selected: {snoozeChoiceLabels[selectedSnoozeChoice]} until {formatHumanReadableDateTime(snoozeDate, snoozeTime)}
+                          </span>
+                          <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            disabled={pendingAction === "snooze-item"}
+                            onClick={handleSnooze}
+                          >
+                            {pendingAction === "snooze-item" ? "Snoozing..." : "Snooze item"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                   </form>
 
                   <dl className={styles.metaGrid}>
@@ -967,6 +1189,10 @@ export function ParkingLotApp({ initialItems, initialSelectedDetail }: ParkingLo
                     <div>
                       <dt>Resolved at</dt>
                       <dd>{visibleDetail.item.resolvedAt ? formatTimestamp(visibleDetail.item.resolvedAt) : "Not resolved"}</dd>
+                    </div>
+                    <div>
+                      <dt>Snoozed until</dt>
+                      <dd>{visibleDetail.item.snoozedUntil ? formatTimestamp(visibleDetail.item.snoozedUntil) : "Not snoozed"}</dd>
                     </div>
                     <div>
                       <dt>Archived at</dt>

@@ -6,6 +6,7 @@ import {
   getParkingLotItemDetail,
   listParkingLotItems,
   resolveParkingLotItem,
+  snoozeParkingLotItem,
   unarchiveParkingLotItem,
   updateParkingLotComment,
   updateParkingLotItem,
@@ -14,6 +15,7 @@ import {
   createCommentInputSchema,
   createItemInputSchema,
   itemViewSchema,
+  snoozeItemInputSchema,
   updateCommentInputSchema,
   updateItemInputSchema,
 } from "./schemas.ts";
@@ -41,7 +43,7 @@ const toolDefinitions: Record<string, ToolDefinition> = {
     inputSchema: {
       type: "object",
       properties: {
-        view: { type: "string", enum: ["active", "resolved", "archived"] },
+        view: { type: "string", enum: ["active", "snoozed", "resolved", "archived"] },
       },
       required: ["view"],
       additionalProperties: false,
@@ -91,6 +93,18 @@ const toolDefinitions: Record<string, ToolDefinition> = {
         id: { type: "string" },
       },
       required: ["id"],
+      additionalProperties: false,
+    },
+  },
+  snooze_item: {
+    description: "Snooze an active parking lot item until a future time.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        snoozedUntil: { type: "string", format: "date-time" },
+      },
+      required: ["id", "snoozedUntil"],
       additionalProperties: false,
     },
   },
@@ -183,6 +197,9 @@ export function callMcpTool(name: string, args: Record<string, unknown>): MpcToo
       break;
     case "resolve_item":
       structuredContent = resolveParkingLotItem(String(args.id));
+      break;
+    case "snooze_item":
+      structuredContent = snoozeParkingLotItem(String(args.id), snoozeItemInputSchema.parse(args));
       break;
     case "archive_item":
       structuredContent = archiveParkingLotItem(String(args.id));

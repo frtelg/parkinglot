@@ -1,8 +1,5 @@
-# agent-workflow-integration Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change parking-lot-app. Update Purpose after archive.
-## Requirements
 ### Requirement: Agents can interact with the parking lot through shared workflows
 The system SHALL provide agent-agnostic skills or equivalent workflow definitions so AI agents can create, inspect, update, snooze, resolve, archive, and comment on parking lot items without relying on agent-specific prompt conventions.
 
@@ -24,13 +21,6 @@ The system SHALL allow supported local agent integrations to create, edit, comme
 #### Scenario: Agent performs write action
 - **WHEN** a supported local agent invokes a valid write workflow against the parking lot
 - **THEN** the system executes the requested mutation and returns the updated structured result
-
-### Requirement: MCP support is available when agents require tool transport
-The system SHALL provide MCP-compatible integration when direct REST access is not sufficient for the target agent environment.
-
-#### Scenario: MCP-backed agent integration
-- **WHEN** an agent runtime requires MCP to access external tools
-- **THEN** the system exposes parking lot operations through an MCP-compatible interface that preserves the same item and comment behaviors as the REST API
 
 ### Requirement: Agent integrations reuse the same core contracts as the application
 The system SHALL align skill-driven and MCP-driven operations with the same item and comment behaviors exposed through the primary application API, including the Snoozed lifecycle view and automatic return to Active after snooze expiry.

@@ -168,7 +168,7 @@
 
 .tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 12px;
 }
@@ -391,9 +391,105 @@
   color: var(--resolved);
 }
 
+.snoozedBadge {
+  background: rgba(196, 181, 253, 0.12);
+  color: #d8ccff;
+}
+
 .archivedBadge {
   background: rgba(203, 213, 225, 0.07);
   color: var(--archived);
+}
+
+.snoozePanel {
+  margin: 0;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(196, 181, 253, 0.16);
+  background: rgba(196, 181, 253, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.snoozeHeading {
+  margin: 0;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.snoozeHelp,
+.snoozeSummary {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.snoozeChoiceGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.snoozeDateTimeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.snoozeInputField {
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.snoozeInputField input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 11px 12px;
+  color: var(--text);
+}
+
+.snoozeChoice,
+.snoozeChoiceActive {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 10px 14px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+
+.snoozeChoice {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.snoozeChoiceActive {
+  color: var(--text);
+  background: rgba(196, 181, 253, 0.12);
+  border-color: rgba(196, 181, 253, 0.32);
+}
+
+.snoozeChoice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.snoozeActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .detailForm,

@@ -21,6 +21,7 @@ import {
   listItems,
   reorderActiveItems,
   resolveItem,
+  snoozeItem,
   unarchiveItem,
   updateItem,
 } from "./items.ts";
@@ -31,6 +32,8 @@ import {
   reorderActiveItemsInputSchema,
   type ReorderActiveItemsInput,
   type ItemView,
+  snoozeItemInputSchema,
+  type SnoozeItemInput,
   type UpdateCommentInput,
   type UpdateItemInput,
 } from "./schemas.ts";
@@ -62,6 +65,10 @@ export function createParkingLotItem(input: CreateItemInput): ItemResult {
 
 export function updateParkingLotItem(id: string, input: UpdateItemInput): ItemResult {
   return itemResultSchema.parse({ item: updateItem(id, input) });
+}
+
+export function snoozeParkingLotItem(id: string, input: SnoozeItemInput): ItemResult {
+  return itemResultSchema.parse({ item: snoozeItem(id, snoozeItemInputSchema.parse(input)) });
 }
 
 export function reorderParkingLotActiveItems(input: ReorderActiveItemsInput): ReorderItemsResult {

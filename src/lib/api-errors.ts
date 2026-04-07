@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 import { CommentNotFoundError, DeletedCommentError } from "./comments";
-import { InvalidActiveItemOrderError, ItemNotFoundError } from "./items";
+import { InvalidActiveItemOrderError, InvalidSnoozeStateError, ItemNotFoundError } from "./items";
 
 function getValidationMessage(error: ZodError) {
   const issue = error.issues[0];
@@ -19,6 +19,10 @@ export function handleRouteError(error: unknown) {
   }
 
   if (error instanceof InvalidActiveItemOrderError) {
+    return NextResponse.json({ error: error.message }, { status: 409 });
+  }
+
+  if (error instanceof InvalidSnoozeStateError) {
     return NextResponse.json({ error: error.message }, { status: 409 });
   }
 

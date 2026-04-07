@@ -1,8 +1,5 @@
-# parking-lot-items Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change parking-lot-app. Update Purpose after archive.
-## Requirements
 ### Requirement: Users can manage parking lot items
 The system SHALL allow users to create, edit, read, snooze, resolve, archive, and unarchive parking lot items from the application.
 
@@ -33,13 +30,6 @@ The system SHALL allow users to create, edit, read, snooze, resolve, archive, an
 #### Scenario: Unarchive an item
 - **WHEN** a user unarchives an archived item
 - **THEN** the system restores the item to the appropriate non-archived status without losing its details or comment history
-
-### Requirement: Users do not permanently delete items in v1
-The system SHALL not require or expose hard deletion of parking lot items in the first version.
-
-#### Scenario: User wants to remove an item from active work
-- **WHEN** a user no longer wants an item to appear in their active work list
-- **THEN** the system provides archive and resolve workflows instead of permanently deleting the item
 
 ### Requirement: Users can browse items through an overview and detail workflow
 The system SHALL provide a visual overview of items, including dedicated lifecycle views for Active, Snoozed, Resolved, and Archived items, and open a detailed item view only when a user explicitly selects an item.
@@ -106,21 +96,3 @@ The system SHALL present item states and actions in a way that keeps the list vi
 #### Scenario: Snoozed items do not appear in active work
 - **WHEN** an active item is currently snoozed
 - **THEN** the system shows it only in the Snoozed overview and excludes it from the Active overview until the snooze period expires
-
-### Requirement: The application supports local-first operation
-The system SHALL run as a single-user local application without requiring external network services for normal operation.
-
-#### Scenario: Start and use app offline
-- **WHEN** the user starts the application in an offline environment after local setup
-- **THEN** the user can create, edit, snooze, resolve, archive, unarchive, and read items using local persistence only
-
-#### Scenario: Persist local data across restarts
-- **WHEN** the user closes and reopens the application on the same machine
-- **THEN** previously created items, lifecycle state, and comments remain available locally
-
-### Requirement: The application tolerates multiple local windows for one user
-The system SHALL preserve item and comment data integrity when the same local user opens the application in multiple windows or tabs.
-
-#### Scenario: Update item in another window
-- **WHEN** a user updates an item in one local window and later views that item from another local window
-- **THEN** the system presents the persisted latest state without corrupting the item or its comments

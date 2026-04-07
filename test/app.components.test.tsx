@@ -17,6 +17,7 @@ const baseItem = {
   status: "active" as const,
   archivedAt: null,
   resolvedAt: null,
+  snoozedUntil: null,
   createdAt: timestamp,
   updatedAt: timestamp,
 };
@@ -140,6 +141,13 @@ describe("component exports", () => {
   test("ParkingLotApp supports selected detail interactions and error dismissal", async () => {
     const user = userEvent.setup();
     const { ParkingLotApp } = await import("@/components/parking-lot-app");
+    const dateNowSpy = vi.spyOn(Date, "now").mockReturnValue(new Date("2026-04-03T13:20:00.000Z").valueOf());
+    const laterTodayDefault = new Date("2026-04-03T13:20:00.000Z");
+    laterTodayDefault.setHours(laterTodayDefault.getHours() + 4, 0, 0, 0);
+
+    if (new Date("2026-04-03T13:20:00.000Z").getMinutes() !== 0) {
+      laterTodayDefault.setHours(laterTodayDefault.getHours() + 1);
+    }
 
     const initialItem: Item = {
       ...baseItem,
@@ -200,6 +208,13 @@ describe("component exports", () => {
         );
       }
 
+      if (target === "/api/items?view=snoozed") {
+        return new Response(
+          JSON.stringify({ items: !currentItem.archivedAt && currentItem.snoozedUntil ? [currentItem] : [] }),
+          { headers: { "Content-Type": "application/json" } },
+        );
+      }
+
       if (target === "/api/items?view=archived") {
         return new Response(
           JSON.stringify({
@@ -211,7 +226,7 @@ describe("component exports", () => {
 
       if (target === "/api/items?view=active") {
         return new Response(
-          JSON.stringify({ items: !currentItem.archivedAt && currentItem.status === "active" ? [currentItem] : [] }),
+          JSON.stringify({ items: !currentItem.archivedAt && currentItem.status === "active" && !currentItem.snoozedUntil ? [currentItem] : [] }),
           { headers: { "Content-Type": "application/json" } },
         );
       }
@@ -272,6 +287,7 @@ describe("component exports", () => {
         currentItem = {
           ...currentItem,
           archivedAt: "2026-04-03T14:00:00.000Z",
+          snoozedUntil: null,
           updatedAt: "2026-04-03T14:00:00.000Z",
         };
 
@@ -288,6 +304,7 @@ describe("component exports", () => {
           ...currentItem,
           status: "active",
           archivedAt: null,
+          snoozedUntil: null,
           updatedAt: "2026-04-03T14:05:00.000Z",
         };
 
@@ -302,6 +319,18 @@ describe("component exports", () => {
       if (target === `/api/items/${initialItem.id}/resolve`) {
         return new Response(JSON.stringify({ error: "Resolve failed" }), {
           status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      if (target === `/api/items/${initialItem.id}/snooze`) {
+        currentItem = {
+          ...currentItem,
+          snoozedUntil: "2099-04-03T16:00:00.000Z",
+          updatedAt: "2026-04-03T14:10:00.000Z",
+        };
+
+        return new Response(JSON.stringify({ item: currentItem }), {
           headers: { "Content-Type": "application/json" },
         });
       }
@@ -400,6 +429,63 @@ describe("component exports", () => {
       expect(screen.queryByRole("alert")).toBeNull();
     });
 
+    expect(screen.getByLabelText("Date")).toHaveValue(
+      `${laterTodayDefault.getFullYear()}-${String(laterTodayDefault.getMonth() + 1).padStart(2, "0")}-${String(laterTodayDefault.getDate()).padStart(2, "0")}`,
+    );
+    expect(screen.getByLabelText("Time")).toHaveValue(
+      `${String(laterTodayDefault.getHours()).padStart(2, "0")}:${String(laterTodayDefault.getMinutes()).padStart(2, "0")}`,
+    );
+
+    await user.click(screen.getByLabelText("Tomorrow"));
+    expect(screen.getByLabelText("Date")).toHaveValue("2026-04-04");
+    expect(screen.getByLabelText("Time")).toHaveValue("08:00");
+
+    await user.click(screen.getByLabelText("Next week"));
+    expect(screen.getByLabelText("Date")).toHaveValue("2026-04-10");
+    expect(screen.getByLabelText("Time")).toHaveValue("08:00");
+
+    await user.click(screen.getByLabelText("Custom"));
+    await user.clear(screen.getByLabelText("Date"));
+    await user.type(screen.getByLabelText("Date"), "2026-04-12");
+    await user.clear(screen.getByLabelText("Time"));
+    await user.type(screen.getByLabelText("Time"), "09:30");
+    await user.click(screen.getByRole("button", { name: "Snooze item" }));
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        `/api/items/${initialItem.id}/snooze`,
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ snoozedUntil: new Date("2026-04-12T09:30").toISOString() }),
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "Snoozed" })).toHaveAttribute("aria-selected", "true");
+    });
+
+    await user.click(screen.getByRole("tab", { name: "Active" }));
+    await waitFor(() => {
+      expect(screen.getByText("Nothing is parked right now. Add the next thing you are juggling.")).toBeInTheDocument();
+    });
+
+    currentItem = {
+      ...currentItem,
+      snoozedUntil: null,
+      updatedAt: "2026-04-03T14:12:00.000Z",
+    };
+
+    await user.click(screen.getByRole("tab", { name: "Snoozed" }));
+    await waitFor(() => {
+      expect(screen.getByText("Snoozed items will wait here until their wake-up time arrives.")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("tab", { name: "Active" }));
+    expect(await screen.findByRole("button", { name: /Renamed item/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Renamed item/i }));
+    expect(await screen.findByText("Item detail")).toBeInTheDocument();
+    expect(screen.getByText("Not snoozed")).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Archive" }));
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -413,6 +499,7 @@ describe("component exports", () => {
     });
 
     expect(screen.queryByText("Item detail")).toBeNull();
+    dateNowSpy.mockRestore();
   });
 
   test("ParkingLotApp renders archived detail state and supports unarchive", async () => {
@@ -474,6 +561,7 @@ describe("component exports", () => {
     const unarchiveButton = screen.getByRole("button", { name: "Unarchive" });
 
     expect(archivedBadge).toBeInTheDocument();
+    expect(screen.getByText("Not snoozed")).toBeInTheDocument();
     expect(unarchiveButton).toBeInTheDocument();
 
     await user.click(unarchiveButton);
@@ -589,6 +677,7 @@ describe("component exports", () => {
 
     expect(await screen.findByText("No comments yet. Add the first breadcrumb that explains what changed or why it matters.")).toBeInTheDocument();
     expect(screen.getByText("Not resolved")).toBeInTheDocument();
+    expect(screen.getByText("Not snoozed")).toBeInTheDocument();
     expect(screen.getByText("Not archived")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Clear" }));
@@ -791,4 +880,60 @@ describe("component exports", () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
   }, 10000);
+
+  test("ParkingLotApp shows snoozed items and returns them to active after refresh", async () => {
+    const { ParkingLotApp } = await import("@/components/parking-lot-app");
+
+    const snoozedItem: Item = {
+      ...baseItem,
+      title: "Waiting item",
+      snoozedUntil: "2099-04-03T16:00:00.000Z",
+    };
+
+    let activeItems: Item[] = [];
+    let snoozedItems: Item[] = [snoozedItem];
+
+    const fetchMock = vi.fn((input: string) => {
+      const target = String(input);
+
+      if (target === "/api/items?view=snoozed") {
+        return Promise.resolve(
+          new Response(JSON.stringify({ items: snoozedItems }), {
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+
+      if (target === "/api/items?view=active") {
+        return Promise.resolve(
+          new Response(JSON.stringify({ items: activeItems }), {
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+
+      throw new Error(`Unexpected fetch call: ${target}`);
+    });
+
+    class MockEventSource {
+      addEventListener() {}
+      close() {}
+    }
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("EventSource", MockEventSource as unknown as typeof EventSource);
+
+    const user = userEvent.setup();
+    render(<ParkingLotApp initialItems={[snoozedItem]} initialSelectedDetail={null} />);
+
+    await user.click(screen.getByRole("tab", { name: "Snoozed" }));
+    expect(await screen.findByText("Waiting item")).toBeInTheDocument();
+
+    snoozedItems = [];
+    activeItems = [{ ...snoozedItem, snoozedUntil: null, updatedAt: "2026-04-03T17:00:00.000Z" }];
+
+    await user.click(screen.getByRole("tab", { name: "Active" }));
+    expect(await screen.findByText("Waiting item")).toBeInTheDocument();
+    expect(screen.getByText("Active view opened.")).toHaveAttribute("aria-live", "polite");
+  });
 });

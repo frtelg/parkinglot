@@ -5,6 +5,7 @@ import {
   itemDetailResultSchema,
   itemListResultSchema,
   itemResultSchema,
+  snoozeItemResultSchema,
 } from "@/lib/contracts";
 import {
   authorTypeSchema,
@@ -15,6 +16,7 @@ import {
   itemStatusSchema,
   itemViewSchema,
   reorderActiveItemsInputSchema,
+  snoozeItemInputSchema,
   updateCommentInputSchema,
   updateItemInputSchema,
 } from "@/lib/schemas";
@@ -24,6 +26,7 @@ const timestamp = "2026-04-03T12:00:00.000Z";
 describe("schemas and contracts", () => {
   test("item schemas validate and normalize item inputs", () => {
     expect(itemStatusSchema.parse("active")).toBe("active");
+    expect(itemViewSchema.parse("snoozed")).toBe("snoozed");
     expect(itemViewSchema.parse("archived")).toBe("archived");
     expect(authorTypeSchema.parse("agent")).toBe("agent");
 
@@ -48,10 +51,17 @@ describe("schemas and contracts", () => {
         status: "resolved",
         archivedAt: null,
         resolvedAt: timestamp,
+        snoozedUntil: null,
         createdAt: timestamp,
         updatedAt: timestamp,
       }).status,
     ).toBe("resolved");
+
+    expect(
+      snoozeItemInputSchema.parse({
+        snoozedUntil: "2099-04-03T13:00:00.000Z",
+      }).snoozedUntil,
+    ).toBe("2099-04-03T13:00:00.000Z");
   });
 
   test("comment schemas validate and normalize comment inputs", () => {
@@ -121,6 +131,7 @@ describe("schemas and contracts", () => {
       status: "active" as const,
       archivedAt: null,
       resolvedAt: null,
+      snoozedUntil: null,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -138,6 +149,7 @@ describe("schemas and contracts", () => {
 
     expect(itemListResultSchema.parse({ items: [item] }).items).toHaveLength(1);
     expect(itemResultSchema.parse({ item }).item.title).toBe("Write tests");
+    expect(snoozeItemResultSchema.parse({ item }).item.id).toBe(item.id);
     expect(itemDetailResultSchema.parse({ item, comments: [comment] }).comments[0].id).toBe(comment.id);
     expect(commentResultSchema.parse({ comment }).comment.body).toBe("Saved note");
   });

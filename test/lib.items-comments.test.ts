@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import Database from "better-sqlite3";
 
@@ -41,16 +41,26 @@ describe("items and comments data layer", () => {
     const reordered = items.reorderActiveItems({ itemIds: [second.id, first.id] });
     expect(reordered.map((item) => item.id)).toEqual([second.id, first.id]);
 
+    const snoozed = items.snoozeItem(first.id, { snoozedUntil: "2099-04-03T14:00:00.000Z" });
+    expect(snoozed.snoozedUntil).toBe("2099-04-03T14:00:00.000Z");
+    expect(items.getViewForItem(snoozed)).toBe("snoozed");
+    expect(items.listItems("active").map((item) => item.id)).toEqual([second.id]);
+    expect(items.listItems("snoozed").map((item) => item.id)).toEqual([first.id]);
+
     items.touchItem(first.id, "2026-04-03T13:00:00.000Z");
-    expect(items.listItems("active").map((item) => item.id)).toEqual([second.id, first.id]);
+    expect(items.listItems("active").map((item) => item.id)).toEqual([second.id]);
 
     const third = items.createItem({ title: "Third item", details: "Created third" });
-    expect(items.listItems("active").map((item) => item.id)).toEqual([second.id, first.id, third.id]);
+    expect(items.listItems("active").map((item) => item.id)).toEqual([second.id, third.id]);
 
     expect(() => items.reorderActiveItems({ itemIds: [first.id, second.id] })).toThrow(items.InvalidActiveItemOrderError);
+    expect(() => items.snoozeItem(first.id, { snoozedUntil: "2099-04-03T15:00:00.000Z" })).toThrow(
+      items.InvalidSnoozeStateError,
+    );
 
     const resolved = items.resolveItem(first.id);
     expect(resolved.status).toBe("resolved");
+    expect(resolved.snoozedUntil).toBeNull();
     expect(items.getViewForItem(resolved)).toBe("resolved");
     expect(items.listItems("resolved").map((item) => item.id)).toContain(first.id);
 
@@ -66,6 +76,24 @@ describe("items and comments data layer", () => {
     expect(items.listItems("resolved").map((item) => item.id)).toContain(first.id);
   });
 
+  test("expired snoozes wake during reads and rejoin active order at the end", async () => {
+    const items = await import("@/lib/items");
+
+    const first = items.createItem({ title: "First active", details: "Created first" });
+    const second = items.createItem({ title: "Second active", details: "Created second" });
+
+    const nowSpy = vi.spyOn(Date, "now");
+    nowSpy.mockImplementation(() => new Date("2026-04-03T10:00:00.000Z").valueOf());
+    items.snoozeItem(first.id, { snoozedUntil: "2026-04-03T10:30:00.000Z" });
+    nowSpy.mockImplementation(() => new Date("2026-04-03T11:00:00.000Z").valueOf());
+
+    expect(items.listItems("snoozed")).toEqual([]);
+    expect(items.listItems("active").map((item) => item.id)).toEqual([second.id, first.id]);
+    expect(items.getItem(first.id)?.snoozedUntil).toBeNull();
+
+    nowSpy.mockRestore();
+  });
+
   test("database migration seeds missing active sort order from recency", async () => {
     const runtime = await createIsolatedRuntime();
 
@@ -79,15 +107,16 @@ describe("items and comments data layer", () => {
           status TEXT NOT NULL CHECK (status IN ('active', 'resolved')),
           archived_at TEXT,
           resolved_at TEXT,
+          snoozed_until TEXT,
           created_at TEXT NOT NULL,
           updated_at TEXT NOT NULL
         );
 
-        INSERT INTO items (id, title, details, status, archived_at, resolved_at, created_at, updated_at)
+        INSERT INTO items (id, title, details, status, archived_at, resolved_at, snoozed_until, created_at, updated_at)
         VALUES
-          ('11111111-1111-1111-8111-111111111111', 'Older active', '', 'active', NULL, NULL, '2026-04-03T10:00:00.000Z', '2026-04-03T10:00:00.000Z'),
-          ('22222222-2222-2222-8222-222222222222', 'Newer active', '', 'active', NULL, NULL, '2026-04-03T11:00:00.000Z', '2026-04-03T11:30:00.000Z'),
-          ('33333333-3333-3333-8333-333333333333', 'Resolved item', '', 'resolved', NULL, '2026-04-03T09:00:00.000Z', '2026-04-03T09:00:00.000Z', '2026-04-03T09:00:00.000Z');
+          ('11111111-1111-1111-8111-111111111111', 'Older active', '', 'active', NULL, NULL, NULL, '2026-04-03T10:00:00.000Z', '2026-04-03T10:00:00.000Z'),
+          ('22222222-2222-2222-8222-222222222222', 'Newer active', '', 'active', NULL, NULL, NULL, '2026-04-03T11:00:00.000Z', '2026-04-03T11:30:00.000Z'),
+          ('33333333-3333-3333-8333-333333333333', 'Resolved item', '', 'resolved', NULL, '2026-04-03T09:00:00.000Z', NULL, '2026-04-03T09:00:00.000Z', '2026-04-03T09:00:00.000Z');
       `);
       seededDatabase.close();
 
@@ -97,6 +126,7 @@ describe("items and comments data layer", () => {
       const database = await import("@/lib/database");
       const appliedMigrations = database.db.prepare("SELECT id FROM schema_migrations ORDER BY id ASC").all() as Array<{ id: string }>;
       expect(appliedMigrations.map((row) => row.id)).toContain("2026-04-03-active-sort-order");
+      expect(appliedMigrations.map((row) => row.id)).toContain("2026-04-07-item-snooze");
     } finally {
       await runtime.cleanup();
     }

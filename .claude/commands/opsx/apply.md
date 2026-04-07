@@ -66,6 +66,7 @@ Implement tasks from an OpenSpec change.
    - Show which task is being worked on
    - Make the code changes required
    - Keep changes minimal and focused
+   - If the change modifies persisted data models, schemas, or storage-backed contracts, add an explicit startup migration for existing local data; do not rely on new installs only
    - Mark task complete in the tasks file: `- [ ]` → `- [x]`
    - Continue to next task
 

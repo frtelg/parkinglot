@@ -36,6 +36,7 @@ function ensureMigrationTable(database: Database.Database) {
 }
 
 function seedMissingActiveSortOrder(database: Database.Database) {
+  const snoozeFilter = hasColumn(database, "items", "snoozed_until") ? "AND snoozed_until IS NULL" : "";
   const activeRows = database
     .prepare(
       `
@@ -43,6 +44,7 @@ function seedMissingActiveSortOrder(database: Database.Database) {
         FROM items
         WHERE archived_at IS NULL
           AND status = 'active'
+          ${snoozeFilter}
           AND active_sort_order IS NULL
         ORDER BY updated_at DESC, created_at DESC, id ASC
       `,
@@ -58,7 +60,7 @@ function seedMissingActiveSortOrder(database: Database.Database) {
       `
         SELECT COALESCE(MAX(active_sort_order), -1) AS max_sort_order
         FROM items
-        WHERE archived_at IS NULL AND status = 'active'
+        WHERE archived_at IS NULL AND status = 'active' ${snoozeFilter}
       `,
     )
     .get() as { max_sort_order: number };
@@ -87,6 +89,19 @@ const migrations: Migration[] = [
       `);
 
       seedMissingActiveSortOrder(database);
+    },
+  },
+  {
+    id: "2026-04-07-item-snooze",
+    apply(database) {
+      if (!hasColumn(database, "items", "snoozed_until")) {
+        database.exec("ALTER TABLE items ADD COLUMN snoozed_until TEXT");
+      }
+
+      database.exec(`
+        CREATE INDEX IF NOT EXISTS idx_items_snoozed_until
+          ON items (archived_at, status, snoozed_until ASC);
+      `);
     },
   },
 ];
@@ -127,6 +142,7 @@ function ensureCoreSchema(database: Database.Database) {
     status TEXT NOT NULL CHECK (status IN ('active', 'resolved')),
     archived_at TEXT,
     resolved_at TEXT,
+    snoozed_until TEXT,
     active_sort_order INTEGER,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
