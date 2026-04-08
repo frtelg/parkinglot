@@ -1,5 +1,5 @@
 ---
-name: parking-lot-tool
+name: parking-lot
 description: Read, create, update, resolve, archive, unarchive, and comment on local parking lot items through the repo's shared REST and MCP contracts.
 targets: [claude, opencode, codex]
 license: MIT
@@ -8,7 +8,7 @@ metadata:
   version: 1.0.0
 ---
 
-# Parking Lot Tool
+# Parking Lot
 
 Use this skill to interact with the local parking lot application without re-deriving its behavior from UI code.
 

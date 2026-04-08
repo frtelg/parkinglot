@@ -22,18 +22,18 @@ Local-first parking lot for tracking parallel work items, lifecycle state, and c
 
 This repo now ships a global installer for attaching the parking lot tool to supported AI tools.
 
-- OpenCode: `parking-lot-tool` skill plus global `~/.config/opencode/opencode.json`
-- Claude Code: `parking-lot-tool` skill plus global `~/.claude.json`
-- Codex: `parking-lot-tool` skill plus global `~/.codex/config.toml`
+- OpenCode: `parking-lot` skill plus global `~/.config/opencode/opencode.json`
+- Claude Code: `parking-lot` skill plus global `~/.claude.json`
+- Codex: `parking-lot` skill plus global `~/.codex/config.toml`
 - GitHub Copilot in VS Code: global user `mcp.json`
 
 Current canonical sources:
 
-- Shared parking lot skill source: `ai/skills/parking-lot-tool/`
+- Shared parking lot skill source: `ai/skills/parking-lot/`
 - MCP config templates: `ai/config/*`
 - Installer: `scripts/install-ai-tooling.mjs`
 
-The installer merges into your existing global tool config. It only adds or updates the `parkinglot` MCP entry and replaces only the `parking-lot-tool` skill directory.
+The installer merges into your existing global tool config. It only adds or updates the `parkinglot` MCP entry and replaces only the `parking-lot` skill directory.
 
 ## Installation
 
@@ -94,12 +94,12 @@ The installer does not replace the full config file for any tool.
 
 - Existing unrelated MCP servers remain untouched.
 - Existing `parkinglot` MCP entries are updated in place.
-- Existing `parking-lot-tool` skill directories are refreshed from this repo.
+- Existing `parking-lot` skill directories are refreshed from this repo.
 
 ### Tool-Specific Notes
 
-- OpenCode: restart OpenCode after install. The `parkinglot` MCP server is added to `~/.config/opencode/opencode.json`, and the `parking-lot-tool` skill is available from `~/.config/opencode/skills/`.
-- Claude Code: restart Claude Code after install. The `parkinglot` MCP server is added to `~/.claude.json`, and the `parking-lot-tool` skill is available from `~/.claude/skills/`.
+- OpenCode: restart OpenCode after install. The `parkinglot` MCP server is added to `~/.config/opencode/opencode.json`, and the `parking-lot` skill is available from `~/.config/opencode/skills/`.
+- Claude Code: restart Claude Code after install. The `parkinglot` MCP server is added to `~/.claude.json`, and the `parking-lot` skill is available from `~/.claude/skills/`.
 - Codex: restart Codex after install. Codex reads the global MCP entry from `~/.codex/config.toml` and scans `~/.agents/skills/` for the installed skill.
 - GitHub Copilot: restart VS Code after install. The `parkinglot` server is added to your user MCP config at `~/Library/Application Support/Code/User/mcp.json`.
 
@@ -236,7 +236,7 @@ Supported tool names:
 - Shared service layer: `src/lib/parking-lot.ts`
 - Shared response contracts: `src/lib/contracts.ts`
 - MCP adapter: `src/lib/mcp-server.ts` and `scripts/parking-lot-mcp.mjs`
-- Canonical repo skill source: `ai/skills/parking-lot-tool/`
+- Canonical repo skill source: `ai/skills/parking-lot/`
 - AI-tool installer: `scripts/install-ai-tooling.mjs`
 
 The intent is that web UI, REST callers, and agent runtimes all reuse the same item and comment semantics rather than reimplementing business rules separately.

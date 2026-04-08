@@ -12,7 +12,7 @@ const SKILL_SOURCE_DIR = path.join(AI_DIR, "skills");
 const HOME = os.homedir();
 
 const SUPPORTED_TOOLS = ["claude", "codex", "copilot", "opencode"];
-const PARKINGLOT_SKILL = "parking-lot-tool";
+const PARKINGLOT_SKILL = "parking-lot";
 const PARKINGLOT_SERVER_NAME = "parkinglot";
 
 const SKILL_TARGETS = {
@@ -49,7 +49,7 @@ const MCP_TARGETS = {
 const PARKINGLOT_MCP_COMMAND = ["node", path.join(ROOT, "scripts", "parking-lot-mcp.mjs")];
 
 function printHelp() {
-  process.stdout.write(`Install global parking lot AI integrations.\n\nUsage:\n  node scripts/install-ai-tooling.mjs [--tool <name>] [--skills-only | --mcp-only]\n\nOptions:\n  --tool <name>    One of: ${SUPPORTED_TOOLS.join(", ")}\n  --skills-only    Install only the parking-lot-tool skill\n  --mcp-only       Install only the parkinglot MCP configuration\n  --help           Show this help text\n\nNotes:\n  - Existing tool config is preserved. Only the parkinglot entry is added or updated.\n  - Existing parking-lot-tool skill directories are replaced with the tracked repo copy.\n`);
+  process.stdout.write(`Install global parking lot AI integrations.\n\nUsage:\n  node scripts/install-ai-tooling.mjs [--tool <name>] [--skills-only | --mcp-only]\n\nOptions:\n  --tool <name>    One of: ${SUPPORTED_TOOLS.join(", ")}\n  --skills-only    Install only the parking-lot skill\n  --mcp-only       Install only the parkinglot MCP configuration\n  --help           Show this help text\n\nNotes:\n  - Existing tool config is preserved. Only the parkinglot entry is added or updated.\n  - Existing parking-lot skill directories are replaced with the tracked repo copy.\n`);
 }
 
 function parseArgs(argv) {
