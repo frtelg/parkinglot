@@ -30,6 +30,15 @@ export function CreateItemSection({
   return (
     <div className={styles.createSection}>
       <div className={styles.createLead}>
+        <div className={styles.createLeadCopy}>
+          <span className={styles.createEyebrow}>Add a new item</span>
+          <p className={styles.createHint}>
+            {isOpen
+              ? "The form is open below. Add a short title and save it to the list."
+              : "Capture the next task, follow-up, or idea you want to keep in view."}
+          </p>
+        </div>
+
         <button
           type="button"
           className={styles.createCtaButton}
@@ -37,10 +46,8 @@ export function CreateItemSection({
           aria-controls={formId}
           onClick={onToggle}
         >
-          {isOpen ? "Close composer" : "Add item"}
+          {isOpen ? "Close form" : "Add item"}
         </button>
-
-        {isOpen ? <p className={styles.createHint}>The inline form is open below.</p> : null}
       </div>
 
       {isOpen ? (

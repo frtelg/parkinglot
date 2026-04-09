@@ -115,7 +115,7 @@ export function ItemDetailPanel({
         <div className={styles.detailHeaderActions}>
           <span className={`${styles.badge} ${toneClassNames[itemPresentation.tone]}`}>{itemPresentation.label}</span>
           <button type="button" className={styles.secondaryButton} onClick={onClose}>
-            Close
+            Close detail
           </button>
         </div>
       </div>
@@ -133,26 +133,33 @@ export function ItemDetailPanel({
 
         <DetailDescriptionPreview details={draftDetails} />
 
-        <div className={styles.actions}>
-          <button type="submit" className={styles.primaryButton} disabled={pendingAction === "save-item"}>
-            {pendingAction === "save-item" ? "Saving..." : "Save changes"}
-          </button>
+        <div className={styles.actionCluster}>
+          <div className={styles.actionClusterHeader}>
+            <span className={styles.actionEyebrow}>Item actions</span>
+            <p className={styles.actionHint}>Save edits, finish the thread, or move it out of the main queue.</p>
+          </div>
 
-          {!item.archivedAt && item.status === "active" ? (
-            <button type="button" className={styles.secondaryButton} disabled={pendingAction === "resolve-item"} onClick={onResolve}>
-              {pendingAction === "resolve-item" ? "Resolving..." : "Resolve"}
+          <div className={styles.actions}>
+            <button type="submit" className={styles.primaryButton} disabled={pendingAction === "save-item"}>
+              {pendingAction === "save-item" ? "Saving..." : "Save changes"}
             </button>
-          ) : null}
 
-          {!item.archivedAt ? (
-            <button type="button" className={styles.secondaryButton} disabled={pendingAction === "archive-item"} onClick={onArchive}>
-              {pendingAction === "archive-item" ? "Archiving..." : "Archive"}
-            </button>
-          ) : (
-            <button type="button" className={styles.secondaryButton} disabled={pendingAction === "unarchive-item"} onClick={onUnarchive}>
-              {pendingAction === "unarchive-item" ? "Restoring..." : "Unarchive"}
-            </button>
-          )}
+            {!item.archivedAt && item.status === "active" ? (
+              <button type="button" className={styles.successButton} disabled={pendingAction === "resolve-item"} onClick={onResolve}>
+                {pendingAction === "resolve-item" ? "Resolving..." : "Mark resolved"}
+              </button>
+            ) : null}
+
+            {!item.archivedAt ? (
+              <button type="button" className={styles.warningButton} disabled={pendingAction === "archive-item"} onClick={onArchive}>
+                {pendingAction === "archive-item" ? "Archiving..." : "Archive item"}
+              </button>
+            ) : (
+              <button type="button" className={styles.primaryButton} disabled={pendingAction === "unarchive-item"} onClick={onUnarchive}>
+                {pendingAction === "unarchive-item" ? "Restoring..." : "Restore item"}
+              </button>
+            )}
+          </div>
         </div>
 
         {!item.archivedAt && item.status === "active" && !item.snoozedUntil ? (

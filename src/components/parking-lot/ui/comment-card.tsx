@@ -47,8 +47,8 @@ export function CommentCard({
           <button type="button" className={styles.secondaryButton} onClick={() => onStartEdit(comment)}>
             Edit
           </button>
-          <button type="button" className={styles.secondaryButton} disabled={isDeleting} onClick={onDelete}>
-            {isDeleting ? "Removing..." : "Remove"}
+          <button type="button" className={styles.dangerButton} disabled={isDeleting} onClick={onDelete}>
+            {isDeleting ? "Removing..." : "Delete comment"}
           </button>
         </div>
       </div>

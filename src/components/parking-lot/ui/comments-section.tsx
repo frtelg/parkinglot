@@ -60,7 +60,7 @@ export function CommentsSection({
           <p>Persistent context stays attached to the item instead of living in side channels.</p>
         </div>
         <button type="button" className={styles.secondaryButton} onClick={onJumpToComposer}>
-          Jump to composer
+          Write a comment
         </button>
       </div>
 

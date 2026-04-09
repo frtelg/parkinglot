@@ -111,15 +111,15 @@ describe("component exports", () => {
     expect(screen.getByText("Initial item")).toBeInTheDocument();
     expect(screen.getByText("Active view loaded.")).toHaveAttribute("aria-live", "polite");
     expect(screen.queryByLabelText("Title")).toBeNull();
-    expect(screen.queryByText("Use the highlighted action to park the next item without confusing it with the list.")).toBeNull();
+    expect(screen.getByText("Capture the next task, follow-up, or idea you want to keep in view.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add item" }));
-    expect(screen.getByRole("button", { name: "Close composer" })).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("The inline form is open below.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Close form" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("The form is open below. Add a short title and save it to the list.")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Close composer" }));
+    await user.click(screen.getByRole("button", { name: "Close form" }));
     expect(screen.queryByLabelText("Title")).toBeNull();
-    expect(screen.queryByText("Use the highlighted action to park the next item without confusing it with the list.")).toBeNull();
+    expect(screen.getByText("Capture the next task, follow-up, or idea you want to keep in view.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Add item" }));
     await user.type(screen.getByLabelText("Title"), "Created item");
@@ -356,9 +356,9 @@ describe("component exports", () => {
     expect(descriptionPreview).toBeTruthy();
     expect(within(descriptionPreview as HTMLElement).getByText("Initial details")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Jump to composer" }));
+    await user.click(screen.getByRole("button", { name: "Write a comment" }));
     await user.type(screen.getByLabelText("New comment"), "New note");
-    await user.click(screen.getByRole("button", { name: "Add comment" }));
+    await user.click(screen.getByRole("button", { name: "Post comment" }));
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -413,7 +413,7 @@ describe("component exports", () => {
     await user.click(within(editedNoteCard as HTMLElement).getByRole("button", { name: "Edit" }));
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
-    await user.click(within(editedNoteCard as HTMLElement).getByRole("button", { name: "Remove" }));
+    await user.click(within(editedNoteCard as HTMLElement).getByRole("button", { name: "Delete comment" }));
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         `/api/items/${initialItem.id}/comments/${initialDetail.comments[0].id}`,
@@ -421,7 +421,7 @@ describe("component exports", () => {
       );
     });
 
-    await user.click(within(detailPanel as HTMLElement).getByRole("button", { name: "Resolve" }));
+    await user.click(within(detailPanel as HTMLElement).getByRole("button", { name: "Mark resolved" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Resolve failed");
 
     await user.click(screen.getByRole("button", { name: "Dismiss" }));
@@ -449,7 +449,7 @@ describe("component exports", () => {
     await user.type(screen.getByLabelText("Date"), "2026-04-12");
     await user.clear(screen.getByLabelText("Time"));
     await user.type(screen.getByLabelText("Time"), "09:30");
-    await user.click(screen.getByRole("button", { name: "Snooze item" }));
+    await user.click(screen.getByRole("button", { name: "Snooze for later" }));
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         `/api/items/${initialItem.id}/snooze`,
@@ -486,7 +486,7 @@ describe("component exports", () => {
     expect(await screen.findByText("Item detail")).toBeInTheDocument();
     expect(screen.getByText("Not snoozed")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Archive" }));
+    await user.click(screen.getByRole("button", { name: "Archive item" }));
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         `/api/items/${initialItem.id}/archive`,
@@ -558,7 +558,7 @@ describe("component exports", () => {
     expect(detailPanel).toBeTruthy();
 
     const archivedBadge = within(detailPanel as HTMLElement).getByText("Archived");
-    const unarchiveButton = screen.getByRole("button", { name: "Unarchive" });
+    const unarchiveButton = screen.getByRole("button", { name: "Restore item" });
 
     expect(archivedBadge).toBeInTheDocument();
     expect(screen.getByText("Not snoozed")).toBeInTheDocument();

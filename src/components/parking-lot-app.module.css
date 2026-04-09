@@ -171,39 +171,57 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 12px;
+  padding: 8px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
 }
 
 .tab,
 .activeTab,
 .primaryButton,
 .secondaryButton,
+.successButton,
+.warningButton,
+.dangerButton,
 .dismissButton {
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .tab,
 .activeTab {
-  padding: 10px 12px;
-  background: transparent;
-  color: var(--text-muted);
+  min-height: 48px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  color: color-mix(in srgb, var(--text) 80%, var(--text-muted));
+  font-weight: 600;
 }
 
 .tab:hover,
 .activeTab:hover,
 .primaryButton:hover,
 .secondaryButton:hover,
+.successButton:hover,
+.warningButton:hover,
+.dangerButton:hover,
 .dismissButton:hover,
 .itemCard:hover,
 .selectedCard:hover {
-  transform: none;
+  transform: translateY(-1px);
 }
 
 .activeTab {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, rgba(255, 212, 74, 0.2), rgba(249, 115, 22, 0.24));
+  border-color: rgba(255, 212, 74, 0.4);
   color: var(--text);
+  box-shadow: 0 8px 20px rgba(249, 115, 22, 0.12);
 }
 
 .createSection {
@@ -215,14 +233,34 @@
 
 .createLead {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 212, 74, 0.22);
+  background: linear-gradient(135deg, rgba(255, 212, 74, 0.08), rgba(249, 115, 22, 0.12));
+  box-shadow: 0 16px 40px rgba(7, 10, 16, 0.22);
+}
+
+.createLeadCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.createEyebrow {
+  color: #ffd978;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .createHint {
   margin: 0;
-  max-width: 38ch;
-  color: var(--text-muted);
+  max-width: 48ch;
+  color: color-mix(in srgb, var(--text) 82%, var(--text-muted));
   line-height: 1.5;
 }
 
@@ -257,26 +295,48 @@
 }
 
 .primaryButton,
-.secondaryButton {
-  padding: 10px 14px;
+.secondaryButton,
+.successButton,
+.warningButton,
+.dangerButton {
+  min-height: 44px;
+  padding: 10px 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
   cursor: pointer;
 }
 
 .createCtaButton {
-  padding: 11px 16px;
+  min-width: 160px;
+  min-height: 52px;
+  padding: 13px 20px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 212, 74, 0.38);
-  background: linear-gradient(135deg, rgba(255, 212, 74, 0.22), rgba(249, 115, 22, 0.3));
-  color: #fff4c2;
+  border: 1px solid rgba(255, 212, 74, 0.5);
+  background: linear-gradient(135deg, rgba(255, 212, 74, 0.95), rgba(249, 115, 22, 0.92));
+  color: #211300;
   font-weight: 700;
+  letter-spacing: 0.01em;
   cursor: pointer;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.32),
+    0 14px 32px rgba(249, 115, 22, 0.28);
+  transition:
+    transform 120ms ease,
+    border-color 120ms ease,
+    background 120ms ease,
+    color 120ms ease,
+    box-shadow 120ms ease;
 }
 
 .createCtaButton:hover {
-  border-color: rgba(255, 212, 74, 0.54);
-  background: linear-gradient(135deg, rgba(255, 212, 74, 0.3), rgba(249, 115, 22, 0.38));
+  transform: translateY(-1px);
+  border-color: rgba(255, 212, 74, 0.68);
+  background: linear-gradient(135deg, rgba(255, 224, 128, 1), rgba(251, 146, 60, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 18px 38px rgba(249, 115, 22, 0.34);
 }
 
 .createCtaButton:disabled {
@@ -285,25 +345,48 @@
 }
 
 .primaryButton {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-  font-weight: 600;
-  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(135deg, rgba(255, 212, 74, 0.92), rgba(249, 115, 22, 0.88));
+  color: #211300;
+  border-color: rgba(255, 212, 74, 0.38);
+  box-shadow: 0 10px 24px rgba(249, 115, 22, 0.18);
 }
 
 .secondaryButton {
-  background: transparent;
-  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.successButton {
+  background: linear-gradient(135deg, rgba(74, 222, 128, 0.22), rgba(22, 163, 74, 0.28));
+  color: #d7ffe2;
+  border-color: rgba(74, 222, 128, 0.28);
+}
+
+.warningButton {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.18), rgba(249, 115, 22, 0.2));
+  color: #fff0c2;
+  border-color: rgba(251, 191, 36, 0.26);
+}
+
+.dangerButton {
+  background: linear-gradient(135deg, rgba(248, 113, 113, 0.16), rgba(220, 38, 38, 0.22));
+  color: #ffd6d6;
+  border-color: rgba(248, 113, 113, 0.28);
 }
 
 .primaryButton:disabled,
 .secondaryButton:disabled,
+.successButton:disabled,
+.warningButton:disabled,
+.dangerButton:disabled,
 .createCtaButton:disabled,
 .tab:disabled,
 .activeTab:disabled {
   cursor: not-allowed;
   opacity: 0.65;
   transform: none;
+  box-shadow: none;
 }
 
 .list {
@@ -492,6 +575,36 @@
   gap: 12px;
 }
 
+.actionCluster {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.actionClusterHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.actionEyebrow {
+  color: #ffd978;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.actionHint {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 .detailForm,
 .commentEditForm,
 .commentComposer {
@@ -627,6 +740,9 @@
 .field select:focus-visible,
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
+.successButton:focus-visible,
+.warningButton:focus-visible,
+.dangerButton:focus-visible,
 .createCtaButton:focus-visible,
 .tab:focus-visible,
 .activeTab:focus-visible,
@@ -708,6 +824,7 @@
 
   .createLead {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .detailOverlay {

@@ -109,7 +109,7 @@ describe("parking lot ui components", () => {
       />,
     );
 
-    expect(screen.getByText("The inline form is open below.")).toBeInTheDocument();
+    expect(screen.getByText("The form is open below. Add a short title and save it to the list.")).toBeInTheDocument();
     await user.type(screen.getByLabelText("Title"), "!");
     await user.type(screen.getByLabelText("Details"), "?");
     expect(onTitleChange).toHaveBeenCalled();
@@ -274,20 +274,20 @@ describe("parking lot ui components", () => {
     expect(screen.getByRole("link", { name: "https://example.com/guide" })).toBeInTheDocument();
     expect(screen.getByText("Existing note")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Resolve" }));
-    await user.click(screen.getByRole("button", { name: "Archive" }));
+    await user.click(screen.getByRole("button", { name: "Mark resolved" }));
+    await user.click(screen.getByRole("button", { name: "Archive item" }));
     await user.click(screen.getByLabelText("Tomorrow"));
     await user.type(screen.getByLabelText("Date"), "2026-04-04");
     await user.type(screen.getByLabelText("Time"), "08:00");
-    await user.click(screen.getByRole("button", { name: "Snooze item" }));
-    await user.click(screen.getByRole("button", { name: "Jump to composer" }));
+    await user.click(screen.getByRole("button", { name: "Snooze for later" }));
+    await user.click(screen.getByRole("button", { name: "Write a comment" }));
     await user.type(screen.getByLabelText("New comment"), "!");
     await user.selectOptions(screen.getByLabelText("Author type"), "agent");
     await user.type(screen.getByLabelText("Optional label"), "Planner");
-    await user.click(screen.getByRole("button", { name: "Add comment" }));
+    await user.click(screen.getByRole("button", { name: "Post comment" }));
     await user.click(screen.getByRole("button", { name: "Clear" }));
     await user.click(screen.getByRole("button", { name: "Edit" }));
-    await user.click(screen.getByRole("button", { name: "Remove" }));
+    await user.click(screen.getByRole("button", { name: "Delete comment" }));
 
     expect(handlers.onResolve).toHaveBeenCalledTimes(1);
     expect(handlers.onArchive).toHaveBeenCalledTimes(1);
@@ -353,7 +353,7 @@ describe("parking lot ui components", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Unarchive" }));
+    await user.click(screen.getByRole("button", { name: "Restore item" }));
     expect(onUnarchive).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("Pause this item")).toBeNull();
   });

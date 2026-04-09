@@ -71,7 +71,7 @@ export function CommentComposer({
 
       <div className={styles.actions}>
         <button type="submit" className={styles.primaryButton} disabled={pendingAction === "create-comment"}>
-          {pendingAction === "create-comment" ? "Posting..." : "Add comment"}
+          {pendingAction === "create-comment" ? "Posting..." : "Post comment"}
         </button>
         <button type="button" className={styles.secondaryButton} onClick={onClear}>
           Clear

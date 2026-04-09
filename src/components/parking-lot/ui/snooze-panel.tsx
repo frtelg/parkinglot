@@ -65,8 +65,8 @@ export function SnoozePanel({
         <span className={styles.snoozeSummary}>
           Selected: {snoozeChoiceLabels[selectedChoice]} until {formatHumanReadableDateTime(date, time)}
         </span>
-        <button type="button" className={styles.secondaryButton} disabled={pendingAction === "snooze-item"} onClick={onSnooze}>
-          {pendingAction === "snooze-item" ? "Snoozing..." : "Snooze item"}
+        <button type="button" className={styles.primaryButton} disabled={pendingAction === "snooze-item"} onClick={onSnooze}>
+          {pendingAction === "snooze-item" ? "Snoozing..." : "Snooze for later"}
         </button>
       </div>
     </div>
